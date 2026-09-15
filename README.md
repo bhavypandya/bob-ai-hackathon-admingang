@@ -1,6 +1,6 @@
-# 🚀 [Your Project Title Here]
+# SupplyGuard — Supply Chain Disruption Assistant & Fleet Optimizer
 
-> ⚠️ **Replace everything in `[ ]` brackets with your actual content before submission.**
+> **IBM Bob AI Hackathon Submission** — AdminGang
 
 ---
 
@@ -8,36 +8,39 @@
 
 | Field | Value |
 |---|---|
-| **Team Name** | [Your Team Name] |
-| **Track** | [AI / DevOps / Sustainability / Open] |
-| **Team Lead** | [Name] — [email@ibm.com] |
-| **Members** | [Name 1], [Name 2], [Name 3] |
+| **Team Name** | AdminGang |
+| **Track** | AI |
+| **Team Lead** | AdminGang Team Lead |
+| **Members** | Team Member 1, Team Member 2, Team Member 3 |
 
 ---
 
 ## 🎯 Problem Statement
 
-> In 2–3 sentences: What problem does your project solve? Who experiences this problem?
-
-[Describe the real-world problem your project addresses. Be specific about who the user is and what pain point they face.]
+Supply chain disruptions — weather events, port strikes, road closures, carrier outages —
+cascade across hundreds of active shipments simultaneously. Operations managers cannot
+manually track which shipments are affected, identify available fleet assets for redeployment,
+or monitor cold-chain temperature sensor logs across a large, dynamic supply network in real time.
 
 ---
 
 ## 💡 Solution
 
-> In 2–3 sentences: What did you build? How does it solve the problem above?
-
-[Describe your solution clearly. Explain the core mechanism — what makes it work.]
+SupplyGuard is a complete C++ backend + web dashboard that automatically identifies disrupted
+shipments, scores their risk (0–100) with explainable reasons, recommends alternative routes
+and carriers, detects idle fleet assets for redeployment, monitors cold-chain IoT sensor data
+for temperature excursions, and presents everything through an integrated Bob AI assistant
+that answers natural language operational questions using live backend data.
 
 ---
 
 ## ✨ Key Features
 
-- **Feature 1:** [Brief description — e.g., "Real-time anomaly detection using watsonx.ai"]
-- **Feature 2:** [Brief description]
-- **Feature 3:** [Brief description]
-- **Feature 4:** [Optional]
-- **Feature 5:** [Optional]
+- **Disruption Impact Analysis:** Every affected shipment receives an explainable risk score (0–100) with specific reasons (route affected, carrier disrupted, priority, cold-chain sensitivity)
+- **Route & Carrier Recommendations:** Algorithm-driven recommendations comparing risk, cost, capacity, and availability
+- **Fleet Utilisation Optimisation:** Automatic detection of idle assets with data-driven redeployment recommendations
+- **Cold-Chain IoT Monitoring:** Configurable temperature range monitoring with excursion severity classification (NORMAL → WARNING → HIGH → CRITICAL)
+- **Bob AI Assistant:** Natural language operations Q&A backed by live C++ backend data
 
 ---
 
@@ -45,77 +48,117 @@
 
 | Category | Technologies |
 |---|---|
-| **Languages** | [e.g., Python, TypeScript] |
-| **Frameworks** | [e.g., FastAPI, React] |
-| **IBM Technologies** | [e.g., watsonx.ai, IBM Bob, IBM Cloud] |
-| **Databases** | [e.g., PostgreSQL, Redis] |
-| **Other** | [e.g., Docker, GitHub Actions] |
+| **Languages** | C++17, HTML5, CSS3, JavaScript |
+| **Backend** | Custom C++ HTTP server (no frameworks required) |
+| **IBM Technologies** | IBM Bob AI |
+| **Database** | SQLite3 (bundled amalgamation) |
+| **Libraries** | nlohmann/json (header-only) |
+| **Frontend** | Chart.js, Vanilla JS |
+| **Build** | CMake + MinGW/GCC (Windows), GCC (Linux/macOS) |
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-├── src/                  # All source code
-├── docs/                 # Written documentation
-│   ├── problem-statement.md
-│   ├── solution-overview.md
-│   ├── architecture.md
-│   └── setup-guide.md
-├── demo/                 # Demo artifacts
-│   ├── screenshots/      # App screenshots
-│   └── demo-video-link.txt  # Link to demo video
-├── presentation/         # Slide deck
-└── submission.yaml       # Structured submission metadata
+├── src/
+│   ├── backend/
+│   │   ├── main.cpp              ← HTTP server + route registration
+│   │   ├── api/                  ← REST API handlers + Bob query handler
+│   │   ├── database/             ← SQLite wrapper + seed data
+│   │   ├── models/               ← Data model structs
+│   │   └── services/             ← Business logic services
+│   │       ├── disruption_service.cpp
+│   │       ├── shipment_service.cpp   ← Impact scoring algorithm
+│   │       ├── route_service.cpp      ← Route recommendation engine
+│   │       ├── carrier_service.cpp    ← Carrier recommendation engine
+│   │       ├── fleet_service.cpp      ← Fleet optimisation
+│   │       ├── cold_chain_service.cpp ← Temperature excursion detection
+│   │       ├── recommendation_service.cpp ← Unified recommendation engine
+│   │       └── simulation_service.cpp ← What-if scenario engine
+│   ├── frontend/
+│   │   ├── index.html            ← Dashboard SPA
+│   │   ├── css/dashboard.css
+│   │   └── js/dashboard.js
+│   ├── bob/                      ← Bob integration configuration
+│   ├── tests/                    ← Unit tests (67 tests, all passing)
+│   ├── third_party/              ← nlohmann/json + SQLite amalgamation
+│   ├── CMakeLists.txt
+│   ├── build.bat                 ← Windows build script
+│   └── build.sh                  ← Linux/macOS build script
+├── docs/                         ← Architecture, setup, problem statement
+├── demo/                         ← Screenshots, video link
+├── presentation/                 ← Slide deck
+└── submission.yaml
 ```
 
 ---
 
 ## ⚡ How to Run
 
-> **Copy these exact steps from your [`docs/setup-guide.md`](docs/setup-guide.md)**
+### Windows (MinGW/GCC)
+
+```batch
+cd src
+build.bat
+build\bin\supply_chain_backend.exe --frontend frontend
+```
+
+### Linux / macOS
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/[your-repo].git
-cd [your-repo]
-
-# 2. Install dependencies
-[your install command here]
-
-# 3. Configure environment
-cp .env.example .env
-# Edit .env with your values
-
-# 4. Run the project
-[your run command here]
+cd src
+chmod +x build.sh
+./build.sh
+./build/bin/supply_chain_backend --frontend frontend
 ```
+
+Open **http://localhost:8080** in your browser.
+
+### Run Tests
+
+```batch
+src\build\bin\run_tests.exe
+```
+
+Expected: **67 passed, 0 failed**
 
 ---
 
-## 🖥️ Demo
+## 🖥️ Demo Flow
+
+1. Open `http://localhost:8080` → **Overview** tab shows KPI cards
+2. **Disruptions** tab → 5 active/monitoring disruptions including Cyclone Biparjoy
+3. **Shipments** tab → 24 shipments, filter to see CRITICAL/HIGH risk
+4. Click any shipment → Detail panel with risk reasons + route recommendation
+5. **Fleet** tab → Utilisation chart, idle assets, redeployment recommendations
+6. **Cold Chain** tab → Temperature cards + interactive Chart.js temperature graph
+7. **Simulation** tab → Click "Temperature Excursion" for SH1016 → watch severity change
+8. **Bob AI** tab → Ask: *"What should we do right now?"*
 
 | Artifact | Link |
 |---|---|
 | 📹 Demo Video | [See demo/demo-video-link.txt](demo/demo-video-link.txt) |
 | 🌐 Live Demo | [See demo/live-demo-url.txt](demo/live-demo-url.txt) |
 | 🖼️ Screenshots | [See demo/screenshots/](demo/screenshots/) |
-| 📊 Presentation | [See presentation/slides.pdf](presentation/) |
+| 📊 Presentation | [See presentation/](presentation/) |
 
 ---
 
 ## ⚠️ Known Limitations
 
-> Be honest — judges appreciate transparency over overclaiming.
-
-- [Limitation 1: e.g., "Authentication is mocked — not production-ready"]
-- [Limitation 2: e.g., "Only tested on Chrome"]
-- [Limitation 3: e.g., "Feature X is scaffolded but not fully implemented"]
+- HTTP server is single-threaded (one request at a time) — suitable for demo, not production
+- Cold-chain severity is based on configured thresholds — not a regulatory determination
+- Route recommendations use heuristic scoring, not graph-based pathfinding
+- Demo data is for Indian supply chain geography
 
 ---
 
 ## 🏅 What We're Most Proud Of
 
-[Tell the judges what part of your submission is strongest and worth paying close attention to.]
+The **complete end-to-end workflow** — from a disruption event through risk scoring,
+route/carrier recommendation, fleet redeployment, cold-chain monitoring, to Bob AI
+summarising the situation and recommending actions — all implemented in clean C++17
+with zero external HTTP framework dependencies and 67 passing unit tests.
 
 ---

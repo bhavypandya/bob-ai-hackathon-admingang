@@ -1,79 +1,227 @@
 # Setup Guide
 
-> **This file is read by the automated evaluation pipeline. Be precise and complete.**
-
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
-
-- [ ] [e.g., Python 3.11+]
-- [ ] [e.g., Node.js 18+]
-- [ ] [e.g., Docker Desktop]
-- [ ] [e.g., An IBM Cloud account with watsonx.ai access]
-
-## Environment Variables
-
-Copy `.env.example` to `.env` and fill in the values:
-
-```bash
-cp .env.example .env
-```
-
-| Variable | Description | Required |
+| Tool | Version | Purpose |
 |---|---|---|
-| `WATSONX_API_KEY` | Your IBM watsonx.ai API key | Yes |
-| `WATSONX_PROJECT_ID` | Your watsonx.ai project ID | Yes |
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `SLACK_WEBHOOK_URL` | Slack webhook for alerts | No |
+| C++ Compiler | GCC 6.3+ / MSVC 2019+ / Clang 7+ | Backend compilation |
+| MinGW (Windows) | Any recent | g++, gcc on Windows |
+| CMake (optional) | 3.16+ | Alternative build system |
+| Web browser | Chrome/Firefox/Edge | Frontend dashboard |
 
-## Installation
+**No Python, Node.js, or external package managers required.**
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/[your-org]/[your-repo].git
-cd [your-repo]
+All dependencies are bundled in the repository:
+- `src/third_party/sqlite/` — SQLite 3.46 amalgamation
+- `src/third_party/nlohmann/` — nlohmann/json v3.11.3 (header-only)
 
-# 2. Install backend dependencies
-[your command — e.g.: pip install -r requirements.txt]
+---
 
-# 3. Install frontend dependencies (if applicable)
-[your command — e.g.: cd frontend && npm install]
+## Quick Start (Windows — MinGW)
 
-# 4. Set up the database (if applicable)
-[your command — e.g.: python manage.py migrate]
+### Step 1: Clone the repository
+
+```batch
+git clone <repository-url>
+cd bob-ai-hackathon-admingang
 ```
 
-## Running the Application
+### Step 2: Build
 
-```bash
-# Start the backend
-[your command — e.g.: uvicorn app.main:app --reload]
-
-# Start the frontend (in a separate terminal, if applicable)
-[your command — e.g.: cd frontend && npm run dev]
+```batch
+src\build.bat
 ```
 
-The application will be available at: `http://localhost:[PORT]`
+The script will:
+- Compile the bundled SQLite3
+- Compile all 8 C++ services
+- Compile the API handler and main server
+- Link the `supply_chain_backend.exe` binary
+- Copy the frontend to `src\build\bin\frontend\`
+
+### Step 3: Run the backend
+
+```batch
+src\build\bin\supply_chain_backend.exe --frontend src\frontend
+```
+
+Or with the auto-copied frontend:
+```batch
+cd src\build\bin
+supply_chain_backend.exe
+```
+
+### Step 4: Open the dashboard
+
+Open your browser and navigate to:
+```
+http://localhost:8080
+```
+
+You should see the SupplyGuard dashboard with the Overview tab active.
+
+---
+
+## Quick Start (Linux / macOS)
+
+### Step 1: Install prerequisites
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install build-essential cmake libsqlite3-dev
+
+# macOS
+xcode-select --install
+brew install cmake
+```
+
+### Step 2: Build
+
+```bash
+cd src
+chmod +x build.sh
+./build.sh
+```
+
+### Step 3: Run
+
+```bash
+./build/bin/supply_chain_backend --frontend frontend
+```
+
+### Step 4: Open the dashboard
+
+```
+http://localhost:8080
+```
+
+---
+
+## Build Options
+
+| Option | Default | Description |
+|---|---|---|
+| `--port <n>` | 8080 | HTTP port to listen on |
+| `--db <path>` | `:memory:` | SQLite database path (`:memory:` = in-memory) |
+| `--frontend <dir>` | `./frontend` | Path to frontend HTML/CSS/JS files |
+
+Example with custom port:
+```batch
+supply_chain_backend.exe --port 9090 --frontend src\frontend
+```
+
+---
 
 ## Running Tests
 
-```bash
-[your test command — e.g.: pytest tests/ -v]
+```batch
+src\build\bin\run_tests.exe
 ```
 
-## Quick Demo (Optional)
+Expected output:
+```
+=== Supply Chain Assistant — Unit Tests ===
 
-If you have a demo script or sample data to showcase the project quickly:
+── Disruption Tests ──────────────────
+  ✓  Active disruptions loaded from seed data
+  ...
+
+Results: 67 passed, 0 failed
+```
+
+---
+
+## Build with CMake (Alternative)
+
+If CMake is available:
 
 ```bash
-[e.g.: python demo/seed_demo_data.py]
-[e.g.: open http://localhost:8000/demo]
+mkdir -p src/build_cmake
+cmake -S src -B src/build_cmake -DCMAKE_BUILD_TYPE=Release
+cmake --build src/build_cmake --parallel
 ```
+
+Then run:
+```bash
+./src/build_cmake/bin/supply_chain_backend --frontend src/frontend
+```
+
+---
+
+## Environment Variables (Optional)
+
+Copy `.env.example` to `.env`:
+
+```batch
+copy src\.env.example src\.env
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `APP_PORT` | 8080 | HTTP server port |
+| `DB_PATH` | `:memory:` | SQLite database path |
+
+**Note:** The application works with defaults and does not require `.env` to be configured
+for the demo.
+
+---
+
+## Verifying the Installation
+
+After starting the backend, verify:
+
+```
+GET http://localhost:8080/api/health
+```
+
+Expected response:
+```json
+{
+  "status": "ok",
+  "service": "Supply Chain Disruption Assistant",
+  "version": "1.0.0"
+}
+```
+
+```
+GET http://localhost:8080/api/dashboard
+```
+
+Should return the full KPI dashboard data including disruptions, affected shipments,
+fleet stats, and cold-chain alerts.
+
+---
 
 ## Troubleshooting
 
-| Issue | Solution |
-|---|---|
-| [e.g., `ModuleNotFoundError`] | [e.g., Run `pip install -r requirements.txt` again] |
-| [e.g., Database connection refused] | [e.g., Ensure PostgreSQL is running: `docker compose up db`] |
-| [e.g., watsonx.ai 401 error] | [e.g., Check `WATSONX_API_KEY` in your `.env` file] |
+### "Port already in use"
+
+Change the port: `supply_chain_backend.exe --port 9090`
+And update `src/frontend/js/dashboard.js` line 1: `const API = 'http://localhost:9090';`
+
+### "g++ not found" on Windows
+
+Install MinGW from https://www.mingw-w64.org/ or via MSYS2:
+```
+pacman -S mingw-w64-x86_64-gcc
+```
+
+### Build fails with nlohmann errors
+
+Ensure `src/third_party/nlohmann/json.hpp` exists. If not, download it:
+```
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp" -OutFile "src\third_party\nlohmann\json.hpp"
+```
+
+### CORS errors in browser
+
+The backend sets `Access-Control-Allow-Origin: *` on all responses.
+If you see CORS errors, ensure you're accessing the dashboard through the backend
+at `http://localhost:8080` rather than opening `index.html` directly as a file.
+
+### Dashboard shows "Backend Not Running"
+
+The frontend cannot connect to the backend. Check:
+1. The backend executable is running
+2. It is listening on port 8080 (check console output)
+3. No firewall is blocking localhost connections

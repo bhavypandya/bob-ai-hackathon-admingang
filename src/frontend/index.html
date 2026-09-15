@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supply Chain Disruption Assistant</title>
+<link rel="stylesheet" href="css/dashboard.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="app-header">
+  <div class="header-left">
+    <div class="logo">⛓ SupplyGuard</div>
+    <div class="subtitle">Disruption Assistant &amp; Fleet Optimizer</div>
+  </div>
+  <div class="header-right">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Connecting...</span>
+    <button class="btn btn-refresh" onclick="refreshAll()">⟳ Refresh</button>
+  </div>
+</header>
+
+<!-- ── Navigation ──────────────────────────────────────────────────────────── -->
+<nav class="main-nav">
+  <button class="nav-btn active" data-section="overview" onclick="showSection('overview', this)">Overview</button>
+  <button class="nav-btn" data-section="disruptions" onclick="showSection('disruptions', this)">Disruptions</button>
+  <button class="nav-btn" data-section="shipments" onclick="showSection('shipments', this)">Shipments</button>
+  <button class="nav-btn" data-section="fleet" onclick="showSection('fleet', this)">Fleet</button>
+  <button class="nav-btn" data-section="coldchain" onclick="showSection('coldchain', this)">Cold Chain</button>
+  <button class="nav-btn" data-section="recommendations" onclick="showSection('recommendations', this)">Recommendations</button>
+  <button class="nav-btn" data-section="simulation" onclick="showSection('simulation', this)">Simulation</button>
+  <button class="nav-btn" data-section="bob" onclick="showSection('bob', this)">🤖 Bob AI</button>
+</nav>
+
+<!-- ── Main content ────────────────────────────────────────────────────────── -->
+<main class="main-content">
+
+<!-- ═══ OVERVIEW ═════════════════════════════════════════════════════════════ -->
+<section id="section-overview" class="section active">
+  <h2 class="section-title">Operations Overview</h2>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-critical" id="kpi-disruptions">
+      <div class="kpi-value" id="kpiDisruptions">—</div>
+      <div class="kpi-label">Active Disruptions</div>
+      <div class="kpi-icon">⚡</div>
+    </div>
+    <div class="kpi-card kpi-warning" id="kpi-affected">
+      <div class="kpi-value" id="kpiAffected">—</div>
+      <div class="kpi-label">Affected Shipments</div>
+      <div class="kpi-icon">📦</div>
+    </div>
+    <div class="kpi-card kpi-info" id="kpi-utilisation">
+      <div class="kpi-value" id="kpiUtilisation">—</div>
+      <div class="kpi-label">Fleet Utilisation</div>
+      <div class="kpi-icon">🚛</div>
+    </div>
+    <div class="kpi-card kpi-neutral" id="kpi-idle">
+      <div class="kpi-value" id="kpiIdle">—</div>
+      <div class="kpi-label">Idle Assets</div>
+      <div class="kpi-icon">⏸</div>
+    </div>
+    <div class="kpi-card kpi-cold" id="kpi-cold">
+      <div class="kpi-value" id="kpiCold">—</div>
+      <div class="kpi-label">Cold-Chain Alerts</div>
+      <div class="kpi-icon">❄</div>
+    </div>
+    <div class="kpi-card kpi-danger" id="kpi-risks">
+      <div class="kpi-value" id="kpiRisks">—</div>
+      <div class="kpi-label">High/Critical Risks</div>
+      <div class="kpi-icon">🚨</div>
+    </div>
+  </div>
+
+  <!-- Active disruptions summary -->
+  <div class="panel">
+    <h3 class="panel-title">Active Disruptions</h3>
+    <div id="overviewDisruptions" class="disruption-list">Loading...</div>
+  </div>
+
+  <!-- Top affected shipments -->
+  <div class="panel">
+    <h3 class="panel-title">Highest Risk Shipments</h3>
+    <div class="table-wrapper">
+      <table class="data-table" id="overviewShipmentsTable">
+        <thead><tr>
+          <th>Shipment</th><th>Origin → Destination</th><th>Priority</th>
+          <th>Route</th><th>Delay</th><th>Risk</th><th>Cold Chain</th>
+        </tr></thead>
+        <tbody id="overviewShipmentsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Top recommendations -->
+  <div class="panel">
+    <h3 class="panel-title">Priority Recommendations</h3>
+    <div id="overviewRecs" class="rec-list">Loading...</div>
+  </div>
+</section>
+
+<!-- ═══ DISRUPTIONS ══════════════════════════════════════════════════════════ -->
+<section id="section-disruptions" class="section">
+  <h2 class="section-title">Disruption Management</h2>
+  <div id="disruptionCards" class="disruption-cards">Loading...</div>
+</section>
+
+<!-- ═══ SHIPMENTS ════════════════════════════════════════════════════════════ -->
+<section id="section-shipments" class="section">
+  <h2 class="section-title">Shipment Impact Analysis</h2>
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterShipments('all', this)">All Shipments</button>
+    <button class="filter-btn" onclick="filterShipments('affected', this)">Affected Only</button>
+    <button class="filter-btn" onclick="filterShipments('CRITICAL', this)">Critical Risk</button>
+    <button class="filter-btn" onclick="filterShipments('HIGH', this)">High Risk</button>
+    <button class="filter-btn" onclick="filterShipments('cold', this)">Cold Chain</button>
+  </div>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead><tr>
+        <th>ID</th><th>Origin</th><th>Destination</th><th>Route</th>
+        <th>Carrier</th><th>Priority</th><th>Status</th><th>Delay (h)</th>
+        <th>Risk Score</th><th>Risk</th><th>Cold Chain</th><th>Actions</th>
+      </tr></thead>
+      <tbody id="shipmentsTableBody"></tbody>
+    </table>
+  </div>
+  <!-- Shipment detail panel -->
+  <div id="shipmentDetail" class="detail-panel" style="display:none">
+    <div class="detail-header">
+      <h3 id="detailTitle">Shipment Detail</h3>
+      <button onclick="document.getElementById('shipmentDetail').style.display='none'">✕</button>
+    </div>
+    <div id="detailContent"></div>
+  </div>
+</section>
+
+<!-- ═══ FLEET ═════════════════════════════════════════════════════════════════ -->
+<section id="section-fleet" class="section">
+  <h2 class="section-title">Fleet Utilisation</h2>
+
+  <div class="fleet-stats" id="fleetStats">Loading...</div>
+
+  <div class="two-col">
+    <div class="panel">
+      <h3 class="panel-title">Fleet Assets</h3>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead><tr>
+            <th>Asset</th><th>Type</th><th>Location</th><th>Status</th>
+            <th>Capacity (kg)</th><th>Utilisation</th><th>Refrigerated</th><th>Assignment</th>
+          </tr></thead>
+          <tbody id="fleetTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 class="panel-title">Redeployment Opportunities</h3>
+      <div id="redeploymentList">Loading...</div>
+      <div class="chart-container" style="margin-top:16px">
+        <canvas id="fleetChart" width="300" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ COLD CHAIN ════════════════════════════════════════════════════════════ -->
+<section id="section-coldchain" class="section">
+  <h2 class="section-title">Cold-Chain Monitoring</h2>
+
+  <div class="cold-chain-grid" id="coldChainCards">Loading...</div>
+
+  <div class="panel" style="margin-top:20px">
+    <h3 class="panel-title">Temperature History — <span id="tempChartLabel">Select a shipment</span></h3>
+    <div class="chart-container" style="height:300px">
+      <canvas id="temperatureChart"></canvas>
+    </div>
+    <div class="cold-shipment-selector" id="coldShipmentSelector"></div>
+  </div>
+</section>
+
+<!-- ═══ RECOMMENDATIONS ══════════════════════════════════════════════════════ -->
+<section id="section-recommendations" class="section">
+  <h2 class="section-title">Recommendations Engine</h2>
+
+  <!-- Route/Carrier recommendations -->
+  <div class="panel">
+    <h3 class="panel-title">Route Recommendations</h3>
+    <div class="two-col">
+      <div>
+        <label class="form-label">Select Shipment</label>
+        <select id="routeShipmentSelect" class="form-select" onchange="loadRouteRecommendation()">
+          <option value="">— choose shipment —</option>
+        </select>
+      </div>
+      <div id="routeRecResult" class="rec-result"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 class="panel-title">Carrier Recommendations</h3>
+    <div class="two-col">
+      <div>
+        <label class="form-label">Select Shipment</label>
+        <select id="carrierShipmentSelect" class="form-select" onchange="loadCarrierRecommendation()">
+          <option value="">— choose shipment —</option>
+        </select>
+      </div>
+      <div id="carrierRecResult" class="rec-result"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 class="panel-title">All Active Recommendations</h3>
+    <div id="allRecommendations">Loading...</div>
+  </div>
+</section>
+
+<!-- ═══ SIMULATION ════════════════════════════════════════════════════════════ -->
+<section id="section-simulation" class="section">
+  <h2 class="section-title">What-If Simulation</h2>
+
+  <div class="sim-grid">
+    <div class="sim-card" onclick="runSimulation('weather_disruption')">
+      <div class="sim-icon">🌪</div>
+      <div class="sim-title">Weather Disruption</div>
+      <div class="sim-desc">Simulate a new storm affecting Gujarat corridor</div>
+    </div>
+    <div class="sim-card" onclick="runSimulation('road_closure')">
+      <div class="sim-icon">🚧</div>
+      <div class="sim-title">Road Closure</div>
+      <div class="sim-desc">Close the Delhi–Jaipur highway</div>
+    </div>
+    <div class="sim-card" onclick="runSimulation('port_strike')">
+      <div class="sim-icon">⚓</div>
+      <div class="sim-title">Port Strike</div>
+      <div class="sim-desc">Simulate a Chennai port labour strike</div>
+    </div>
+    <div class="sim-card" onclick="runSimulation('carrier_unavailable')">
+      <div class="sim-icon">🚚</div>
+      <div class="sim-title">Carrier Unavailable</div>
+      <div class="sim-desc">PrimeFreight Ltd fleet recall</div>
+    </div>
+    <div class="sim-card" onclick="runSimulation('demand_increase')">
+      <div class="sim-icon">📈</div>
+      <div class="sim-title">Demand Surge</div>
+      <div class="sim-desc">5 urgent shipments added to Mumbai–Delhi corridor</div>
+    </div>
+    <div class="sim-card" onclick="runSimulation('temperature_excursion', 'SH1016')">
+      <div class="sim-icon">🌡</div>
+      <div class="sim-title">Temperature Excursion</div>
+      <div class="sim-desc">Inject critical cold-chain excursion for vaccine shipment SH1016</div>
+    </div>
+    <div class="sim-card sim-reset" onclick="runSimulation('reset')">
+      <div class="sim-icon">↺</div>
+      <div class="sim-title">Reset to Baseline</div>
+      <div class="sim-desc">Restore all data to initial demo state</div>
+    </div>
+  </div>
+
+  <div id="simResult" class="sim-result" style="display:none">
+    <h3 id="simResultTitle">Simulation Result</h3>
+    <div id="simResultContent"></div>
+  </div>
+</section>
+
+<!-- ═══ BOB AI ════════════════════════════════════════════════════════════════ -->
+<section id="section-bob" class="section">
+  <h2 class="section-title">🤖 Bob — Operations AI Assistant</h2>
+
+  <div class="bob-container">
+    <div class="bob-chat" id="bobChat">
+      <div class="bob-msg bob-msg-system">
+        <div class="bob-avatar">🤖</div>
+        <div class="bob-bubble">
+          <strong>Bob is online.</strong> I have access to all live supply chain data —
+          disruptions, shipments, fleet status, and cold-chain sensor logs.
+          Ask me anything about your current operations.
+        </div>
+      </div>
+    </div>
+    <div class="bob-quick-questions">
+      <strong>Quick questions:</strong>
+      <button class="quick-btn" onclick="askBob('What should we do right now?')">What should we do right now?</button>
+      <button class="quick-btn" onclick="askBob('Which shipments are affected by the current disruption?')">Which shipments are affected?</button>
+      <button class="quick-btn" onclick="askBob('Which shipment has the highest risk?')">Highest risk shipment?</button>
+      <button class="quick-btn" onclick="askBob('What is the best alternative route?')">Best alternative route?</button>
+      <button class="quick-btn" onclick="askBob('Should we change the carrier?')">Change carrier?</button>
+      <button class="quick-btn" onclick="askBob('Which fleet assets are idle?')">Which assets are idle?</button>
+      <button class="quick-btn" onclick="askBob('Where should we redeploy idle assets?')">Where to redeploy?</button>
+      <button class="quick-btn" onclick="askBob('Are any cold-chain shipments at risk?')">Cold-chain at risk?</button>
+      <button class="quick-btn" onclick="askBob('Give me a summary of the current disruption.')">Disruption summary</button>
+    </div>
+    <div class="bob-input-row">
+      <input type="text" id="bobInput" class="bob-input" placeholder="Ask about disruptions, shipments, fleet, cold-chain..." 
+             onkeydown="if(event.key==='Enter') sendBobMessage()">
+      <button class="btn btn-bob" onclick="sendBobMessage()">Ask Bob</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ── Loading overlay ──────────────────────────────────────────────────────── -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading supply chain data...</div>
+</div>
+
+<script src="js/dashboard.js"></script>
+</body>
+</html>

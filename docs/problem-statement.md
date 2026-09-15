@@ -1,21 +1,61 @@
 # Problem Statement
 
-## Background
+## The Challenge
 
-[Describe the broader context. What domain or industry does this problem belong to? What situation creates the problem?]
+Modern supply chains operate across hundreds of active shipments, multiple carriers, diverse
+fleet assets, and temperature-sensitive cargo — all moving simultaneously across routes that
+can be disrupted at any moment.
 
-## The Problem
+### Disruption Types
 
-[State the problem clearly and specifically. Avoid vague statements like "things are slow" — instead say "Operations teams spend an average of 45 minutes per incident diagnosing pipeline failures because logs are scattered across 6 different tools."]
+Supply chain managers face disruptions including:
 
-## Who is Affected
+- **Weather events** — cyclones, floods, or storms affecting port operations and road freight
+- **Port strikes** — dockworker labour action suspending container handling for days
+- **Geopolitical crises** — maritime advisories forcing vessels onto longer alternative routes
+- **Road closures** — infrastructure failures blocking key freight corridors
+- **Carrier disruptions** — fleet recalls or capacity reductions affecting multiple shipments simultaneously
 
-[Describe the specific user or persona experiencing this problem. Be concrete — not "developers" but "backend engineers managing CI/CD pipelines in enterprises with 50+ microservices."]
+### Why Manual Tracking Fails
 
-## Why It Matters
+When a single disruption occurs, it can affect:
+- Multiple routes simultaneously
+- Dozens of shipments on those routes
+- Multiple carriers assigned to those shipments
+- Cold-chain cargo that is temperature-sensitive during extended delays
 
-[What is the cost of this problem? Lost time? Revenue? Safety risk? Frustration? Quantify if possible.]
+An operations manager cannot manually:
+1. Identify which of 100+ shipments are affected
+2. Score the risk of each affected shipment
+3. Find the best alternative route for each
+4. Identify which fleet assets are idle and available for redeployment
+5. Monitor IoT temperature sensors across multiple refrigerated shipments
+6. Synthesise all of this into a prioritised action plan — in real time
 
-## Why Existing Solutions Fall Short
+### The Cold-Chain Dimension
 
-[Briefly explain what people currently do and why it doesn't fully solve the problem. This sets up why your solution is needed.]
+Refrigerated and frozen shipments carry an additional vulnerability:
+- Delays cause equipment to work harder, increasing excursion risk
+- Temperature excursions outside configured ranges may compromise cargo
+- Without real-time IoT monitoring and automated alerts, excursions may not be discovered until delivery
+
+### Who Experiences This Problem
+
+Operations managers, logistics coordinators, and supply chain supervisors at:
+- Pharmaceutical distributors managing cold-chain drug shipments
+- Food and beverage companies with perishable and frozen cargo
+- Industrial manufacturers with time-sensitive component deliveries
+- Logistics providers managing multi-modal, multi-carrier freight networks
+
+### The Cost of Inaction
+
+- Delayed pharmaceutical or vaccine shipments can cause product loss
+- Missed delivery windows trigger contractual penalties
+- Idle trucks and vessels represent wasted capital
+- Cascading delays across connected routes amplify the original disruption
+
+---
+
+The goal is a system that can answer — in real time — the critical operations question:
+
+> **"What is happening, which shipments are affected, what resources should we move, and what should we do now?"**
