@@ -240,7 +240,7 @@ static void handleConnection(socket_t client_sock) {
 
 // ── Service file serving ───────────────────────────────────────────────────────
 #include <fstream>
-
+#include <cstdint>
 static HttpResponse serveFile(const std::string& filepath, const std::string& content_type) {
     std::ifstream f(filepath, std::ios::binary);
     HttpResponse r;

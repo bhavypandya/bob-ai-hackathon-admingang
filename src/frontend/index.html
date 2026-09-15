@@ -3,38 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Supply Chain Disruption Assistant</title>
+<title>SupplyGuard — Supply Chain Command Centre</title>
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
+
 <!-- ── Header ─────────────────────────────────────────────────────────────── -->
 <header class="app-header">
   <div class="header-left">
-    <div class="logo">⛓ SupplyGuard</div>
-    <div class="subtitle">Disruption Assistant &amp; Fleet Optimizer</div>
+    <div class="logo-mark">
+      <span class="logo-bar"></span>
+      <span class="logo-bar"></span>
+      <span class="logo-bar"></span>
+    </div>
+    <div class="logo-text">
+      <div class="logo-name"><span class="logo-white">Supply</span><span class="logo-blue">Guard</span></div>
+      <div class="logo-sub">SUPPLY CHAIN COMMAND CENTRE</div>
+    </div>
   </div>
   <div class="header-right">
     <span class="status-dot" id="statusDot"></span>
-    <span id="statusText">Connecting...</span>
-    <button class="btn btn-refresh" onclick="refreshAll()">⟳ Refresh</button>
+    <span id="statusText" class="status-text">Connecting...</span>
+    <span class="header-divider"></span>
+    <span class="live-label">LIVE OPERATIONS</span>
+    <span class="header-divider"></span>
+    <button class="btn btn-command" onclick="void 0">⌘ Command</button>
+    <button class="btn btn-refresh" onclick="refreshAll()">↺ Refresh data</button>
   </div>
 </header>
 
 <!-- ── Navigation ──────────────────────────────────────────────────────────── -->
 <nav class="main-nav">
-  <button class="nav-btn active" data-section="overview" onclick="showSection('overview', this)">Overview</button>
-  <button class="nav-btn" data-section="disruptions" onclick="showSection('disruptions', this)">Disruptions</button>
-  <button class="nav-btn" data-section="shipments" onclick="showSection('shipments', this)">Shipments</button>
-  <button class="nav-btn" data-section="fleet" onclick="showSection('fleet', this)">Fleet</button>
-  <button class="nav-btn" data-section="coldchain" onclick="showSection('coldchain', this)">Cold Chain</button>
-  <button class="nav-btn" data-section="recommendations" onclick="showSection('recommendations', this)">Recommendations</button>
-  <button class="nav-btn" data-section="simulation" onclick="showSection('simulation', this)">Simulation</button>
-  <button class="nav-btn" data-section="bob" onclick="showSection('bob', this)">🤖 Bob AI</button>
+  <div class="nav-tabs">
+    <button class="nav-btn active" data-section="overview"       onclick="showSection('overview',this)">       <span class="nav-icon">⊞</span> Overview</button>
+    <button class="nav-btn" data-section="disruptions"           onclick="showSection('disruptions',this)">    <span class="nav-icon">⚠</span> Disruptions</button>
+    <button class="nav-btn" data-section="shipments"             onclick="showSection('shipments',this)">      <span class="nav-icon">□</span> Shipments</button>
+    <button class="nav-btn" data-section="fleet"                 onclick="showSection('fleet',this)">          <span class="nav-icon">◇</span> Fleet</button>
+    <button class="nav-btn" data-section="coldchain"             onclick="showSection('coldchain',this)">      <span class="nav-icon">✦</span> Cold Chain</button>
+    <button class="nav-btn" data-section="recommendations"       onclick="showSection('recommendations',this)"><span class="nav-icon">~</span> Recommendations</button>
+    <button class="nav-btn" data-section="simulation"            onclick="showSection('simulation',this)">     <span class="nav-icon">⊙</span> Simulation</button>
+  </div>
+  <button class="nav-ask-bob" onclick="showSection('bob', document.querySelector('[data-section=bob]'))">
+    ✦ Ask Bob
+  </button>
+  <!-- hidden sentinel for JS nav -->
+  <button class="nav-btn nav-hidden" data-section="bob" onclick="showSection('bob',this)"></button>
 </nav>
 
 <!-- ── Main content ────────────────────────────────────────────────────────── -->
 <main class="main-content">
+<!-- decorative ring watermark -->
+<div class="bg-ring" aria-hidden="true"></div>
 
 <!-- ═══ OVERVIEW ═════════════════════════════════════════════════════════════ -->
 <section id="section-overview" class="section active">
@@ -42,34 +62,34 @@
 
   <!-- KPI Cards -->
   <div class="kpi-grid">
-    <div class="kpi-card kpi-critical" id="kpi-disruptions">
-      <div class="kpi-value" id="kpiDisruptions">—</div>
-      <div class="kpi-label">Active Disruptions</div>
+    <div class="kpi-card" id="kpi-disruptions">
+      <div class="kpi-value kpi-red" id="kpiDisruptions">—</div>
+      <div class="kpi-label">ACTIVE DISRUPTIONS</div>
       <div class="kpi-icon">⚡</div>
     </div>
-    <div class="kpi-card kpi-warning" id="kpi-affected">
-      <div class="kpi-value" id="kpiAffected">—</div>
-      <div class="kpi-label">Affected Shipments</div>
+    <div class="kpi-card" id="kpi-affected">
+      <div class="kpi-value kpi-orange" id="kpiAffected">—</div>
+      <div class="kpi-label">AFFECTED SHIPMENTS</div>
       <div class="kpi-icon">📦</div>
     </div>
-    <div class="kpi-card kpi-info" id="kpi-utilisation">
-      <div class="kpi-value" id="kpiUtilisation">—</div>
-      <div class="kpi-label">Fleet Utilisation</div>
+    <div class="kpi-card" id="kpi-utilisation">
+      <div class="kpi-value kpi-blue" id="kpiUtilisation">—</div>
+      <div class="kpi-label">FLEET UTILISATION</div>
       <div class="kpi-icon">🚛</div>
     </div>
-    <div class="kpi-card kpi-neutral" id="kpi-idle">
-      <div class="kpi-value" id="kpiIdle">—</div>
-      <div class="kpi-label">Idle Assets</div>
+    <div class="kpi-card" id="kpi-idle">
+      <div class="kpi-value kpi-grey" id="kpiIdle">—</div>
+      <div class="kpi-label">IDLE ASSETS</div>
       <div class="kpi-icon">⏸</div>
     </div>
-    <div class="kpi-card kpi-cold" id="kpi-cold">
-      <div class="kpi-value" id="kpiCold">—</div>
-      <div class="kpi-label">Cold-Chain Alerts</div>
+    <div class="kpi-card" id="kpi-cold">
+      <div class="kpi-value kpi-teal" id="kpiCold">—</div>
+      <div class="kpi-label">COLD-CHAIN ALERTS</div>
       <div class="kpi-icon">❄</div>
     </div>
-    <div class="kpi-card kpi-danger" id="kpi-risks">
-      <div class="kpi-value" id="kpiRisks">—</div>
-      <div class="kpi-label">High/Critical Risks</div>
+    <div class="kpi-card" id="kpi-risks">
+      <div class="kpi-value kpi-purple" id="kpiRisks">—</div>
+      <div class="kpi-label">HIGH/CRITICAL RISKS</div>
       <div class="kpi-icon">🚨</div>
     </div>
   </div>
@@ -86,8 +106,8 @@
     <div class="table-wrapper">
       <table class="data-table" id="overviewShipmentsTable">
         <thead><tr>
-          <th>Shipment</th><th>Origin → Destination</th><th>Priority</th>
-          <th>Route</th><th>Delay</th><th>Risk</th><th>Cold Chain</th>
+          <th>SHIPMENT</th><th>ORIGIN → DESTINATION</th><th>PRIORITY</th>
+          <th>ROUTE</th><th>DELAY</th><th>RISK</th><th>COLD CHAIN</th>
         </tr></thead>
         <tbody id="overviewShipmentsBody"></tbody>
       </table>
@@ -120,9 +140,9 @@
   <div class="table-wrapper">
     <table class="data-table">
       <thead><tr>
-        <th>ID</th><th>Origin</th><th>Destination</th><th>Route</th>
-        <th>Carrier</th><th>Priority</th><th>Status</th><th>Delay (h)</th>
-        <th>Risk Score</th><th>Risk</th><th>Cold Chain</th><th>Actions</th>
+        <th>ID</th><th>ORIGIN</th><th>DESTINATION</th><th>ROUTE</th>
+        <th>CARRIER</th><th>PRIORITY</th><th>STATUS</th><th>DELAY (H)</th>
+        <th>RISK SCORE</th><th>RISK</th><th>COLD CHAIN</th><th>ACTIONS</th>
       </tr></thead>
       <tbody id="shipmentsTableBody"></tbody>
     </table>
@@ -131,7 +151,7 @@
   <div id="shipmentDetail" class="detail-panel" style="display:none">
     <div class="detail-header">
       <h3 id="detailTitle">Shipment Detail</h3>
-      <button onclick="document.getElementById('shipmentDetail').style.display='none'">✕</button>
+      <button class="detail-close" onclick="document.getElementById('shipmentDetail').style.display='none'">✕ Close</button>
     </div>
     <div id="detailContent"></div>
   </div>
@@ -149,8 +169,8 @@
       <div class="table-wrapper">
         <table class="data-table">
           <thead><tr>
-            <th>Asset</th><th>Type</th><th>Location</th><th>Status</th>
-            <th>Capacity (kg)</th><th>Utilisation</th><th>Refrigerated</th><th>Assignment</th>
+            <th>ASSET</th><th>TYPE</th><th>LOCATION</th><th>STATUS</th>
+            <th>CAPACITY (KG)</th><th>UTILISATION</th><th>REFRIGERATED</th><th>ASSIGNMENT</th>
           </tr></thead>
           <tbody id="fleetTableBody"></tbody>
         </table>
@@ -268,14 +288,14 @@
 
 <!-- ═══ BOB AI ════════════════════════════════════════════════════════════════ -->
 <section id="section-bob" class="section">
-  <h2 class="section-title">🤖 Bob — Operations AI Assistant</h2>
+  <h2 class="section-title">✦ SupplyGuard AI — Operations Assistant</h2>
 
   <div class="bob-container">
     <div class="bob-chat" id="bobChat">
       <div class="bob-msg bob-msg-system">
-        <div class="bob-avatar">🤖</div>
+        <div class="bob-avatar">✦</div>
         <div class="bob-bubble">
-          <strong>Bob is online.</strong> I have access to all live supply chain data —
+          <strong>SupplyGuard AI is online.</strong> I have access to all live supply chain data —
           disruptions, shipments, fleet status, and cold-chain sensor logs.
           Ask me anything about your current operations.
         </div>
@@ -294,7 +314,7 @@
       <button class="quick-btn" onclick="askBob('Give me a summary of the current disruption.')">Disruption summary</button>
     </div>
     <div class="bob-input-row">
-      <input type="text" id="bobInput" class="bob-input" placeholder="Ask about disruptions, shipments, fleet, cold-chain..." 
+      <input type="text" id="bobInput" class="bob-input" placeholder="Ask about disruptions, shipments, fleet, cold-chain..."
              onkeydown="if(event.key==='Enter') sendBobMessage()">
       <button class="btn btn-bob" onclick="sendBobMessage()">Ask Bob</button>
     </div>

@@ -15,7 +15,9 @@ let state = {
   tempChart: null,
   fleetChart: null,
   activeTempShipment: null,
-  shipmentFilter: 'all'
+  shipmentFilter: 'all',
+  // Stores approve/reject decisions keyed by "route:SH1001" or "carrier:SH1001"
+  decisions: {}
 };
 
 // ── API helpers ────────────────────────────────────────────────────────────────
@@ -204,13 +206,19 @@ function renderShipments() {
   }
 
   const tbody = document.getElementById('shipmentsTableBody');
-  tbody.innerHTML = ships.map(s => `
+  tbody.innerHTML = ships.map(s => {
+    const rd = state.decisions['route:'   + s.id];
+    const cd = state.decisions['carrier:' + s.id];
+    const decBadge = (d) => d
+      ? `<span class="table-decision-badge ${d.status === 'approved' ? 'tdb-approved' : 'tdb-rejected'}">${d.status === 'approved' ? '✓' : '✕'}</span>`
+      : '';
+    return `
     <tr style="cursor:pointer" onclick="showShipmentDetail('${s.id}')">
       <td><strong>${s.id}</strong></td>
       <td>${s.origin}</td>
       <td>${s.destination}</td>
-      <td>${s.current_route}</td>
-      <td>${s.carrier}</td>
+      <td>${s.current_route} ${decBadge(rd)}</td>
+      <td>${s.carrier} ${decBadge(cd)}</td>
       <td><span class="badge badge-${s.priority}">${s.priority}</span></td>
       <td><span class="badge badge-${s.status}">${s.status}</span></td>
       <td>${s.expected_delay_hours > 0 ? '+' + s.expected_delay_hours + 'h' : '—'}</td>
@@ -225,7 +233,8 @@ function renderShipments() {
       <td>
         <button class="btn-sm" onclick="event.stopPropagation(); quickRouteRec('${s.id}')">Route ▸</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function showShipmentDetail(id) {
@@ -235,8 +244,29 @@ async function showShipmentDetail(id) {
   const panel = document.getElementById('shipmentDetail');
   document.getElementById('detailTitle').textContent = 'Shipment ' + id;
 
-  let routeHtml = '<p class="text-muted" style="font-size:12px">Loading recommendation...</p>';
-  let carrierHtml = '';
+  // Build decision history section for this shipment
+  const routeDecision    = state.decisions['route:'   + id];
+  const carrierDecision  = state.decisions['carrier:' + id];
+
+  let decisionHistoryHtml = '';
+  if (routeDecision || carrierDecision) {
+    decisionHistoryHtml = `
+      <div class="detail-decisions">
+        <div class="detail-decisions-title">📋 Decision History</div>
+        ${routeDecision   ? `<div class="detail-decision-item ${routeDecision.status === 'approved' ? 'ddi-approved' : 'ddi-rejected'}">
+            <strong>Route Recommendation</strong>
+            <span class="ddi-badge">${routeDecision.status === 'approved' ? '✓ Approved' : '✕ Rejected'}</span>
+            <div class="ddi-note">${routeDecision.note}</div>
+            <div class="ddi-time">at ${routeDecision.at}</div>
+          </div>` : ''}
+        ${carrierDecision ? `<div class="detail-decision-item ${carrierDecision.status === 'approved' ? 'ddi-approved' : 'ddi-rejected'}">
+            <strong>Carrier Recommendation</strong>
+            <span class="ddi-badge">${carrierDecision.status === 'approved' ? '✓ Approved' : '✕ Rejected'}</span>
+            <div class="ddi-note">${carrierDecision.note}</div>
+            <div class="ddi-time">at ${carrierDecision.at}</div>
+          </div>` : ''}
+      </div>`;
+  }
 
   panel.style.display = 'block';
   document.getElementById('detailContent').innerHTML = `
@@ -254,20 +284,34 @@ async function showShipmentDetail(id) {
       <label>Impact Reasons</label>
       <ul class="reasons-list">${s.impact_reasons.map(r => `<li>${r}</li>`).join('')}</ul>
     </div>` : ''}
-    <div id="detailRouteRec" style="margin-top:12px">${routeHtml}</div>
+    ${decisionHistoryHtml}
+    <div id="detailRouteRec" style="margin-top:12px"><p class="text-muted" style="font-size:12px">Loading recommendation...</p></div>
   `;
 
   // Load route recommendation
   try {
     const rec = await apiPost('/api/routes/recommend', { shipment_id: id });
     const el = document.getElementById('detailRouteRec');
-    if (el) el.innerHTML = rec.found ? `
+    if (!el) return;
+    if (!rec.found) {
+      el.innerHTML = `<p style="font-size:12px; color:var(--muted)">${rec.reason}</p>`;
+      return;
+    }
+    // Show rec with quick approve/reject if not yet decided
+    const rd = state.decisions['route:' + id];
+    el.innerHTML = `
       <div class="detail-field"><label>Recommended Route</label>
         <strong style="color:var(--accent)">${rec.recommended_route}</strong> — ${rec.recommended_route_name}
         ${rec.additional_hours > 0 ? `<br><small style="color:var(--muted)">+${rec.additional_hours}h extra time</small>` : ''}
       </div>
-      <div class="detail-field" style="font-size:12px; color:var(--muted)">${rec.reason}</div>` :
-      `<p style="font-size:12px; color:var(--muted)">${rec.reason}</p>`;
+      <div class="detail-field" style="font-size:12px; color:var(--muted)">${rec.reason}</div>
+      ${rd
+        ? decisionBanner(rd.status, rd.label, rd.at, rd.note)
+        : `<div class="rec-action-row">
+             <button class="btn-approve btn-sm-approve" onclick="approveRec('route','${id}','${escapeAttr(rec.recommended_route)}','${escapeAttr(rec.recommended_route_name)}'); showShipmentDetail('${id}')">✓ Approve</button>
+             <button class="btn-reject btn-sm-reject"  onclick="rejectRec('route','${id}'); showShipmentDetail('${id}')">✕ Reject</button>
+           </div>`
+      }`;
   } catch {}
 }
 
@@ -498,10 +542,14 @@ function tempClass(temp, cfg) {
 
 // ── RECOMMENDATIONS ───────────────────────────────────────────────────────────
 async function renderRecommendations() {
-  // Populate ship selects
-  const opts = state.allShipments
-    .filter(s => s.is_affected)
-    .map(s => `<option value="${s.id}">${s.id} — ${s.origin}→${s.destination} (${s.risk_level})</option>`)
+  // Populate ship selects — all shipments, affected first
+  const sorted = [...state.allShipments].sort((a, b) => {
+    if (a.is_affected && !b.is_affected) return -1;
+    if (!a.is_affected && b.is_affected) return 1;
+    return 0;
+  });
+  const opts = sorted
+    .map(s => `<option value="${s.id}">${s.id} — ${s.origin}→${s.destination} (${s.risk_level})${s.is_affected ? ' ⚠' : ''}</option>`)
     .join('');
   document.getElementById('routeShipmentSelect').innerHTML =
     '<option value="">— choose shipment —</option>' + opts;
@@ -519,27 +567,52 @@ async function loadRouteRecommendation() {
   const sid = document.getElementById('routeShipmentSelect').value;
   if (!sid) return;
   const el = document.getElementById('routeRecResult');
-  el.textContent = 'Loading...';
+  el.innerHTML = '<p class="text-muted" style="font-size:12px">Loading...</p>';
+
+  const decisionKey = 'route:' + sid;
+  const existing = state.decisions[decisionKey];
+
   try {
     const rec = await apiPost('/api/routes/recommend', { shipment_id: sid });
     const s = state.allShipments.find(x => x.id === sid);
-    el.innerHTML = `
+    const currentRoute = rec.current_route || (s ? s.current_route : '');
+    const recommendedRoute = rec.recommended_route || 'N/A';
+    const routeName = rec.recommended_route_name || '';
+
+    // Store rec data on the key so approve can reference it
+    if (!existing) {
+      state.decisions[decisionKey + '_data'] = { currentRoute, recommendedRoute, routeName, shipmentId: sid };
+    }
+
+    const beforeAfter = `
       <div class="rec-before-after">
         <div class="rec-box">
           <div style="font-size:11px; color:var(--muted)">CURRENT ROUTE</div>
-          <strong>${rec.current_route || (s ? s.current_route : '')}</strong>
+          <strong>${currentRoute}</strong>
           ${s ? `<br><small class="text-muted">${s.origin} → ${s.destination}</small>` : ''}
         </div>
         <div class="rec-arrow">→</div>
         <div class="rec-box" style="border-color:var(--accent)">
           <div style="font-size:11px; color:var(--accent)">RECOMMENDED ROUTE</div>
-          <strong style="color:var(--accent)">${rec.recommended_route || 'N/A'}</strong>
-          <br><small>${rec.recommended_route_name || ''}</small>
+          <strong style="color:var(--accent)">${recommendedRoute}</strong>
+          <br><small>${routeName}</small>
         </div>
       </div>
       ${rec.additional_hours > 0 ? `<p style="font-size:12px">⏱ Additional time: <strong>+${rec.additional_hours}h</strong></p>` : ''}
       ${rec.cost_usd ? `<p style="font-size:12px">💰 Estimated cost: <strong>USD ${rec.cost_usd.toLocaleString()}</strong></p>` : ''}
       <p style="font-size:12.5px; margin-top:6px; color:var(--muted)">${rec.reason}</p>`;
+
+    if (existing) {
+      // Already decided — show banner, no buttons
+      el.innerHTML = beforeAfter + decisionBanner(existing.status, existing.label, existing.at, existing.note);
+    } else {
+      // Show approve / reject buttons
+      el.innerHTML = beforeAfter + `
+        <div class="rec-action-row" id="routeActionRow_${sid}">
+          <button class="btn-approve" onclick="approveRec('route','${sid}','${escapeAttr(recommendedRoute)}','${escapeAttr(routeName)}')">✓ Approve Route Change</button>
+          <button class="btn-reject"  onclick="rejectRec('route','${sid}')">✕ Reject</button>
+        </div>`;
+    }
   } catch(e) {
     el.textContent = 'Error loading recommendation.';
   }
@@ -549,10 +622,15 @@ async function loadCarrierRecommendation() {
   const sid = document.getElementById('carrierShipmentSelect').value;
   if (!sid) return;
   const el = document.getElementById('carrierRecResult');
-  el.textContent = 'Loading...';
+  el.innerHTML = '<p class="text-muted" style="font-size:12px">Loading...</p>';
+
+  const decisionKey = 'carrier:' + sid;
+  const existing = state.decisions[decisionKey];
+
   try {
     const rec = await apiPost('/api/carriers/recommend', { shipment_id: sid, required_capacity_kg: 5000 });
-    el.innerHTML = `
+
+    const beforeAfter = `
       <div class="rec-before-after">
         <div class="rec-box">
           <div style="font-size:11px; color:var(--muted)">CURRENT CARRIER</div>
@@ -568,9 +646,89 @@ async function loadCarrierRecommendation() {
       </div>
       <p style="font-size:12.5px; margin-top:6px; color:var(--muted)">${rec.reason}</p>
       ${rec.expected_impact ? `<p style="font-size:12px; color:var(--accent); margin-top:4px">📈 ${rec.expected_impact}</p>` : ''}`;
+
+    if (existing) {
+      el.innerHTML = beforeAfter + decisionBanner(existing.status, existing.label, existing.at, existing.note);
+    } else {
+      el.innerHTML = beforeAfter + `
+        <div class="rec-action-row" id="carrierActionRow_${sid}">
+          <button class="btn-approve" onclick="approveRec('carrier','${sid}','${escapeAttr(rec.recommended_carrier)}','${escapeAttr(rec.recommended_carrier_name)}')">✓ Approve Carrier Change</button>
+          <button class="btn-reject"  onclick="rejectRec('carrier','${sid}')">✕ Reject</button>
+        </div>`;
+    }
   } catch(e) {
     el.textContent = 'Error loading recommendation.';
   }
+}
+
+// ── Approve / Reject logic ────────────────────────────────────────────────────
+function approveRec(type, shipmentId, value, label) {
+  const decisionKey = type + ':' + shipmentId;
+  const now = new Date().toLocaleTimeString();
+  state.decisions[decisionKey] = {
+    status: 'approved',
+    label: label || value,
+    value,
+    type,
+    shipmentId,
+    at: now,
+    note: type === 'route'
+      ? `Route changed to ${value} (${label})`
+      : `Carrier changed to ${value} (${label})`
+  };
+
+  // Patch the local shipment so the Shipments tab reflects it instantly
+  const s = state.allShipments.find(x => x.id === shipmentId);
+  if (s) {
+    if (type === 'route') {
+      s.current_route = value;
+      s.status = 'ON_TIME';
+      s.expected_delay_hours = 0;
+      s.risk_level = 'LOW';
+      s.impact_score = 0;
+    } else {
+      s.carrier = value;
+    }
+  }
+
+  // Re-render table row + refresh the result panel
+  renderShipments();
+  if (type === 'route')   loadRouteRecommendation();
+  else                    loadCarrierRecommendation();
+}
+
+function rejectRec(type, shipmentId) {
+  const decisionKey = type + ':' + shipmentId;
+  const now = new Date().toLocaleTimeString();
+  state.decisions[decisionKey] = {
+    status: 'rejected',
+    label: '',
+    value: '',
+    type,
+    shipmentId,
+    at: now,
+    note: type === 'route' ? 'Route change rejected — keeping current route.' : 'Carrier change rejected — keeping current carrier.'
+  };
+
+  if (type === 'route')   loadRouteRecommendation();
+  else                    loadCarrierRecommendation();
+}
+
+function decisionBanner(status, label, at, note) {
+  const isApproved = status === 'approved';
+  return `
+    <div class="decision-banner ${isApproved ? 'decision-approved' : 'decision-rejected'}">
+      <span class="decision-icon">${isApproved ? '✓' : '✕'}</span>
+      <div class="decision-text">
+        <strong>${isApproved ? 'Approved' : 'Rejected'}</strong> at ${at}
+        <div class="decision-note">${note}</div>
+      </div>
+      <span class="decision-locked">🔒 Locked</span>
+    </div>`;
+}
+
+function escapeAttr(str) {
+  return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
 // ── SIMULATION ────────────────────────────────────────────────────────────────

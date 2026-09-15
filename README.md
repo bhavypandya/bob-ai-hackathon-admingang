@@ -10,8 +10,8 @@
 |---|---|
 | **Team Name** | AdminGang |
 | **Track** | AI |
-| **Team Lead** | AdminGang Team Lead |
-| **Members** | Team Member 1, Team Member 2, Team Member 3 |
+| **Team Lead** | Bhavy Pandya |
+| **Members** | 1.Johan Bhalsod 2.Dhyan Chovatiya 3.Naman Dhameliya|
 
 ---
 
