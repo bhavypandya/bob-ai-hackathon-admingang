@@ -133,7 +133,7 @@ std::string handleHealth() {
     json j;
     j["status"] = "ok";
     j["service"] = "Supply Chain Disruption Assistant";
-    j["version"] = "1.0.0";
+    j["version"] = "2.1.0";
     return j.dump();
 }
 

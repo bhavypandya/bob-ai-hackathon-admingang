@@ -1,4 +1,4 @@
-/* dashboard.js — Supply Chain Disruption Assistant Frontend */
+/* dashboard.js — Supply Chain Disruption Assistant Frontend  v2.1 */
 'use strict';
 
 const API = 'http://localhost:8080';

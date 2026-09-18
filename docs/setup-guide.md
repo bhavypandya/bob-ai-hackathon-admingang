@@ -180,7 +180,7 @@ Expected response:
 {
   "status": "ok",
   "service": "Supply Chain Disruption Assistant",
-  "version": "1.0.0"
+  "version": "2.1.0"
 }
 ```
 

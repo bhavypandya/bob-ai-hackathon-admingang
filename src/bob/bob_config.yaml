@@ -1,7 +1,7 @@
 # Bob Integration — Supply Chain Disruption Assistant
 # This file configures Bob AI as the operations assistant for this project.
 
-version: "1.0"
+version: "2.1"
 name: "SupplyGuard Operations Assistant"
 description: >
   Bob serves as the real-time AI operations assistant for the Supply Chain
