@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SupplyGuard v2.1 — Supply Chain Command Centre</title>
+<title>SupplyGuard — Supply Chain Command Centre</title>
 <link rel="stylesheet" href="css/dashboard.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -41,7 +41,6 @@
     <button class="nav-btn" data-section="shipments"             onclick="showSection('shipments',this)">      <span class="nav-icon">□</span> Shipments</button>
     <button class="nav-btn" data-section="fleet"                 onclick="showSection('fleet',this)">          <span class="nav-icon">◇</span> Fleet</button>
     <button class="nav-btn" data-section="coldchain"             onclick="showSection('coldchain',this)">      <span class="nav-icon">✦</span> Cold Chain</button>
-    <button class="nav-btn" data-section="recommendations"       onclick="showSection('recommendations',this)"><span class="nav-icon">~</span> Recommendations</button>
     <button class="nav-btn" data-section="simulation"            onclick="showSection('simulation',this)">     <span class="nav-icon">⊙</span> Simulation</button>
   </div>
   <button class="nav-ask-bob" onclick="showSection('bob', document.querySelector('[data-section=bob]'))">
@@ -102,7 +101,7 @@
 
   <!-- Top affected shipments -->
   <div class="panel">
-    <h3 class="panel-title">Highest Risk Shipments</h3>
+    <h3 class="panel-title">Highest Risk Shipments <span style="font-size:11px; color:var(--muted); font-weight:400; margin-left:6px">Click a row to view shipment</span></h3>
     <div class="table-wrapper">
       <table class="data-table" id="overviewShipmentsTable">
         <thead><tr>
@@ -116,7 +115,7 @@
 
   <!-- Top recommendations -->
   <div class="panel">
-    <h3 class="panel-title">Priority Recommendations</h3>
+    <h3 class="panel-title">Priority Recommendations <span style="font-size:11px; color:var(--muted); font-weight:400; margin-left:6px">Click an issue to approve/reject in Shipments</span></h3>
     <div id="overviewRecs" class="rec-list">Loading...</div>
   </div>
 </section>
@@ -133,12 +132,10 @@
   <div class="filter-bar">
     <button class="filter-btn active" onclick="filterShipments('all', this)">All Shipments</button>
     <button class="filter-btn" onclick="filterShipments('affected', this)">Affected Only</button>
-    <button class="filter-btn" onclick="filterShipments('CRITICAL', this)">Critical Risk</button>
-    <button class="filter-btn" onclick="filterShipments('HIGH', this)">High Risk</button>
     <button class="filter-btn" onclick="filterShipments('cold', this)">Cold Chain</button>
   </div>
   <div class="table-wrapper">
-    <table class="data-table">
+    <table class="data-table" id="shipmentsTable">
       <thead><tr>
         <th>ID</th><th>ORIGIN</th><th>DESTINATION</th><th>ROUTE</th>
         <th>CARRIER</th><th>PRIORITY</th><th>STATUS</th><th>DELAY (H)</th>
@@ -167,7 +164,7 @@
     <div class="panel">
       <h3 class="panel-title">Fleet Assets</h3>
       <div class="table-wrapper">
-        <table class="data-table">
+        <table class="data-table" id="fleetTable">
           <thead><tr>
             <th>ASSET</th><th>TYPE</th><th>LOCATION</th><th>STATUS</th>
             <th>CAPACITY (KG)</th><th>UTILISATION</th><th>REFRIGERATED</th><th>ASSIGNMENT</th>
@@ -198,43 +195,6 @@
       <canvas id="temperatureChart"></canvas>
     </div>
     <div class="cold-shipment-selector" id="coldShipmentSelector"></div>
-  </div>
-</section>
-
-<!-- ═══ RECOMMENDATIONS ══════════════════════════════════════════════════════ -->
-<section id="section-recommendations" class="section">
-  <h2 class="section-title">Recommendations Engine</h2>
-
-  <!-- Route/Carrier recommendations -->
-  <div class="panel">
-    <h3 class="panel-title">Route Recommendations</h3>
-    <div class="two-col">
-      <div>
-        <label class="form-label">Select Shipment</label>
-        <select id="routeShipmentSelect" class="form-select" onchange="loadRouteRecommendation()">
-          <option value="">— choose shipment —</option>
-        </select>
-      </div>
-      <div id="routeRecResult" class="rec-result"></div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h3 class="panel-title">Carrier Recommendations</h3>
-    <div class="two-col">
-      <div>
-        <label class="form-label">Select Shipment</label>
-        <select id="carrierShipmentSelect" class="form-select" onchange="loadCarrierRecommendation()">
-          <option value="">— choose shipment —</option>
-        </select>
-      </div>
-      <div id="carrierRecResult" class="rec-result"></div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h3 class="panel-title">All Active Recommendations</h3>
-    <div id="allRecommendations">Loading...</div>
   </div>
 </section>
 
@@ -288,9 +248,30 @@
 
 <!-- ═══ BOB AI ════════════════════════════════════════════════════════════════ -->
 <section id="section-bob" class="section">
-  <h2 class="section-title">✦ SupplyGuard AI — Operations Assistant</h2>
+  <div class="bob-page">
+    <div class="bob-page-header">
+      <div class="bob-page-brand">
+        <div class="bob-brand-icon">✦</div>
+        <div>
+          <div class="bob-brand-name">SupplyGuard AI</div>
+          <div class="bob-brand-sub">Operations Intelligence Assistant</div>
+        </div>
+      </div>
+      <div class="bob-status-pill">
+        <span class="bob-status-dot"></span>
+        Live &amp; Connected
+      </div>
+    </div>
 
-  <div class="bob-container">
+    <div class="bob-capabilities">
+      <div class="bob-cap">📦 Shipment analysis</div>
+      <div class="bob-cap">⚠ Disruption tracking</div>
+      <div class="bob-cap">🚛 Fleet management</div>
+      <div class="bob-cap">❄ Cold-chain alerts</div>
+      <div class="bob-cap">🗺 Route optimisation</div>
+      <div class="bob-cap">📊 Risk assessment</div>
+    </div>
+
     <div class="bob-chat" id="bobChat">
       <div class="bob-msg bob-msg-system">
         <div class="bob-avatar">✦</div>
@@ -301,27 +282,42 @@
         </div>
       </div>
     </div>
-    <div class="bob-quick-questions">
-      <strong>Quick questions:</strong>
-      <button class="quick-btn" onclick="askBob('What should we do right now?')">What should we do right now?</button>
-      <button class="quick-btn" onclick="askBob('Which shipments are affected by the current disruption?')">Which shipments are affected?</button>
-      <button class="quick-btn" onclick="askBob('Which shipment has the highest risk?')">Highest risk shipment?</button>
-      <button class="quick-btn" onclick="askBob('What is the best alternative route?')">Best alternative route?</button>
-      <button class="quick-btn" onclick="askBob('Should we change the carrier?')">Change carrier?</button>
-      <button class="quick-btn" onclick="askBob('Which fleet assets are idle?')">Which assets are idle?</button>
-      <button class="quick-btn" onclick="askBob('Where should we redeploy idle assets?')">Where to redeploy?</button>
-      <button class="quick-btn" onclick="askBob('Are any cold-chain shipments at risk?')">Cold-chain at risk?</button>
-      <button class="quick-btn" onclick="askBob('Give me a summary of the current disruption.')">Disruption summary</button>
+
+    <div class="bob-quick-section">
+      <div class="bob-quick-label">Quick questions</div>
+      <div class="bob-quick-questions">
+        <button class="quick-btn" onclick="askBob('What should we do right now?')">What should we do right now?</button>
+        <button class="quick-btn" onclick="askBob('Which shipments are affected by the current disruption?')">Which shipments are affected?</button>
+        <button class="quick-btn" onclick="askBob('Which shipment has the highest risk?')">Highest risk shipment?</button>
+        <button class="quick-btn" onclick="askBob('What is the best alternative route?')">Best alternative route?</button>
+        <button class="quick-btn" onclick="askBob('Should we change the carrier?')">Change carrier?</button>
+        <button class="quick-btn" onclick="askBob('Which fleet assets are idle?')">Which assets are idle?</button>
+        <button class="quick-btn" onclick="askBob('Where should we redeploy idle assets?')">Where to redeploy?</button>
+        <button class="quick-btn" onclick="askBob('Are any cold-chain shipments at risk?')">Cold-chain at risk?</button>
+        <button class="quick-btn" onclick="askBob('Give me a summary of the current disruption.')">Disruption summary</button>
+      </div>
     </div>
+
     <div class="bob-input-row">
-      <input type="text" id="bobInput" class="bob-input" placeholder="Ask about disruptions, shipments, fleet, cold-chain..."
-             onkeydown="if(event.key==='Enter') sendBobMessage()">
-      <button class="btn btn-bob" onclick="sendBobMessage()">Ask Bob</button>
+      <div class="bob-input-wrap">
+        <span class="bob-input-icon">✦</span>
+        <input type="text" id="bobInput" class="bob-input" placeholder="Ask about disruptions, shipments, fleet, cold-chain..."
+               onkeydown="if(event.key==='Enter') sendBobMessage()">
+      </div>
+      <button class="btn btn-bob" onclick="sendBobMessage()">Send</button>
     </div>
   </div>
 </section>
 
 </main>
+
+<!-- ── Disruption fullscreen modal ──────────────────────────────────────────── -->
+<div id="disruptionModal" class="disruption-modal-overlay" onclick="if(event.target===this) closeDisruptionModal()">
+  <div class="disruption-modal">
+    <button class="disruption-modal-close" onclick="closeDisruptionModal()">✕</button>
+    <div id="disruptionModalContent"></div>
+  </div>
+</div>
 
 <!-- ── Loading overlay ──────────────────────────────────────────────────────── -->
 <div id="loadingOverlay" class="loading-overlay">

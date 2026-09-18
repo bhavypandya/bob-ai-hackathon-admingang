@@ -1,4 +1,4 @@
-/* dashboard.js — Supply Chain Disruption Assistant Frontend  v2.1 */
+/* dashboard.js — Supply Chain Disruption Assistant Frontend */
 'use strict';
 
 const API = 'http://localhost:8080';
@@ -16,6 +16,10 @@ let state = {
   fleetChart: null,
   activeTempShipment: null,
   shipmentFilter: 'all',
+  // Sorting state: { col: 'id', dir: 'asc' } per table
+  shipmentSort: { col: null, dir: 'asc' },
+  fleetSort: { col: null, dir: 'asc' },
+  overviewSort: { col: null, dir: 'asc' },
   // Stores approve/reject decisions keyed by "route:SH1001" or "carrier:SH1001"
   decisions: {}
 };
@@ -101,7 +105,6 @@ async function refreshAll() {
     renderShipments();
     renderFleet();
     renderColdChain();
-    renderRecommendations();
   } catch(e) {
     console.error('Refresh error:', e);
   }
@@ -140,11 +143,31 @@ function renderOverview() {
       </div>`).join('');
   }
 
-  // Top affected shipments
-  const topShipments = (d.affected_shipments || []).slice(0, 8);
+  // Top affected shipments with sorting
+  const cols = ['id','origin','destination','priority','route','delay','risk','cold_chain'];
+  const sort = state.overviewSort;
+  let topShipments = [...(d.affected_shipments || [])].slice(0, 10);
+  if (sort.col) topShipments = sortArray(topShipments, sort.col, sort.dir);
+
+  const sortIcon = (col) => sort.col === col ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+  const thClick = (col, label) =>
+    `<th class="sortable-th" onclick="sortOverview('${col}')">${label}${sortIcon(col)}</th>`;
+
+  const thead = document.querySelector('#overviewShipmentsTable thead tr');
+  if (thead) {
+    thead.innerHTML =
+      thClick('id','SHIPMENT') +
+      thClick('origin','ORIGIN → DEST') +
+      thClick('priority','PRIORITY') +
+      thClick('current_route','ROUTE') +
+      thClick('expected_delay_hours','DELAY') +
+      thClick('risk_level','RISK') +
+      thClick('cold_chain','COLD CHAIN');
+  }
+
   const tbody = document.getElementById('overviewShipmentsBody');
   tbody.innerHTML = topShipments.map(s => `
-    <tr>
+    <tr style="cursor:pointer" onclick="goToShipment('${s.id}')">
       <td><strong>${s.id}</strong></td>
       <td>${s.origin} → ${s.destination}</td>
       <td><span class="badge badge-${s.priority}">${s.priority}</span></td>
@@ -154,11 +177,29 @@ function renderOverview() {
       <td>${s.cold_chain ? '<span class="cold-chain-on">❄ Yes</span>' : '<span class="cold-chain-off">No</span>'}</td>
     </tr>`).join('');
 
-  // Top recommendations
+  // Top recommendations — clickable, go to shipments
   const topRecs = (d.recommendations || []).slice(0, 5);
   document.getElementById('overviewRecs').innerHTML = topRecs.length
-    ? topRecs.map(r => recItemHtml(r)).join('')
+    ? topRecs.map(r => recItemHtml(r, true)).join('')
     : '<p class="text-muted">No priority recommendations.</p>';
+}
+
+// Navigate to shipments tab and open detail panel for a shipment
+function goToShipment(id) {
+  const btn = document.querySelector('[data-section="shipments"]');
+  showSection('shipments', btn);
+  // Small delay to ensure section is visible before opening panel
+  setTimeout(() => showShipmentDetail(id), 50);
+}
+
+function sortOverview(col) {
+  if (state.overviewSort.col === col) {
+    state.overviewSort.dir = state.overviewSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.overviewSort.col = col;
+    state.overviewSort.dir = 'asc';
+  }
+  renderOverview();
 }
 
 // ── DISRUPTIONS ───────────────────────────────────────────────────────────────
@@ -168,8 +209,8 @@ function renderDisruptions() {
     container.innerHTML = '<p class="text-muted">No disruptions in database.</p>';
     return;
   }
-  container.innerHTML = state.disruptions.map(d => `
-    <div class="disruption-card severity-${d.severity}">
+  container.innerHTML = state.disruptions.map((d, idx) => `
+    <div class="disruption-card severity-${d.severity}" onclick="openDisruptionModal(${idx})">
       <div class="disruption-name">${d.name}</div>
       <div class="disruption-meta">
         <span>📍 ${d.location}</span>
@@ -182,7 +223,109 @@ function renderDisruptions() {
         <strong>Affected routes:</strong> ${d.affected_routes.join(', ')} &nbsp;|&nbsp;
         <strong>Until:</strong> ${d.expected_end_time}
       </div>
+      <div style="margin-top:10px; font-size:12px; color:var(--accent); font-weight:600;">Click for full details →</div>
     </div>`).join('');
+}
+
+function openDisruptionModal(idx) {
+  const d = state.disruptions[idx];
+  if (!d) return;
+
+  // Count affected shipments
+  const affectedShips = state.allShipments.filter(s =>
+    d.affected_routes && d.affected_routes.some(r => s.current_route === r)
+  );
+
+  const severityColor = {
+    CRITICAL: '#7c3aed', HIGH: '#dc2626', MEDIUM: '#d97706', LOW: '#16a34a'
+  }[d.severity] || '#2563eb';
+
+  const modal = document.getElementById('disruptionModal');
+  document.getElementById('disruptionModalContent').innerHTML = `
+    <div class="dis-modal-header" style="border-left:5px solid ${severityColor}">
+      <div class="dis-modal-title">${d.name}</div>
+      <div class="dis-modal-badges">
+        <span class="badge badge-${d.severity}">${d.severity}</span>
+        <span class="badge badge-${d.status}" style="margin-left:6px">${d.status}</span>
+      </div>
+    </div>
+
+    <div class="dis-modal-grid">
+      <div class="dis-modal-field">
+        <div class="dis-modal-label">📍 Location</div>
+        <div class="dis-modal-value">${d.location}</div>
+      </div>
+      <div class="dis-modal-field">
+        <div class="dis-modal-label">🔖 Type</div>
+        <div class="dis-modal-value">${d.type}</div>
+      </div>
+      <div class="dis-modal-field">
+        <div class="dis-modal-label">⏳ Expected End</div>
+        <div class="dis-modal-value">${d.expected_end_time}</div>
+      </div>
+      <div class="dis-modal-field">
+        <div class="dis-modal-label">📦 Affected Shipments</div>
+        <div class="dis-modal-value" style="color:${severityColor}; font-weight:700">${affectedShips.length}</div>
+      </div>
+    </div>
+
+    <div class="dis-modal-field" style="margin-top:16px">
+      <div class="dis-modal-label">📋 Description</div>
+      <div class="dis-modal-desc">${d.description}</div>
+    </div>
+
+    <div class="dis-modal-field" style="margin-top:16px">
+      <div class="dis-modal-label">🛣 Affected Routes</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px">
+        ${d.affected_routes.map(r => `<span class="badge badge-HIGH" style="font-size:12px; padding:4px 10px">${r}</span>`).join('')}
+      </div>
+    </div>
+
+    ${affectedShips.length > 0 ? `
+    <div class="dis-modal-field" style="margin-top:16px">
+      <div class="dis-modal-label">📦 Impacted Shipments</div>
+      <div class="table-wrapper" style="margin-top:8px">
+        <table class="data-table">
+          <thead><tr>
+            <th>ID</th><th>ORIGIN → DEST</th><th>CARGO</th><th>STATUS</th><th>DELAY</th><th>RISK</th><th>ACTION</th>
+          </tr></thead>
+          <tbody>
+            ${affectedShips.map(s => `
+              <tr>
+                <td><strong>${s.id}</strong></td>
+                <td>${s.origin} → ${s.destination}</td>
+                <td>${s.cargo_type || '—'}</td>
+                <td><span class="badge badge-${s.status}">${s.status}</span></td>
+                <td>${s.expected_delay_hours > 0 ? '+' + s.expected_delay_hours + 'h' : '—'}</td>
+                <td>${riskBadge(s.risk_level, s.impact_score)}</td>
+                <td><button class="btn-sm" onclick="closeDisruptionModal(); goToShipment('${s.id}')">View →</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ''}
+
+    <div class="dis-modal-field" style="margin-top:16px">
+      <div class="dis-modal-label">💡 Recommended Actions</div>
+      <div class="dis-modal-actions-list">
+        ${d.severity === 'CRITICAL' || d.severity === 'HIGH' ? `
+          <div class="dis-action-item">🔀 Reroute all affected shipments immediately</div>
+          <div class="dis-action-item">📞 Alert carriers and logistics partners</div>
+          <div class="dis-action-item">🚨 Escalate to operations management</div>
+        ` : `
+          <div class="dis-action-item">👁 Monitor situation closely</div>
+          <div class="dis-action-item">📋 Review alternative routes as contingency</div>
+        `}
+        ${d.type === 'WEATHER' ? '<div class="dis-action-item">🌧 Check weather forecasts for next 48h</div>' : ''}
+        ${d.type === 'PORT_STRIKE' ? '<div class="dis-action-item">⚓ Check alternative port availability</div>' : ''}
+      </div>
+    </div>
+  `;
+  modal.classList.add('active');
+}
+
+function closeDisruptionModal() {
+  document.getElementById('disruptionModal').classList.remove('active');
 }
 
 // ── SHIPMENTS ─────────────────────────────────────────────────────────────────
@@ -198,11 +341,34 @@ function renderShipments() {
   const f = state.shipmentFilter;
 
   if (f === 'affected') {
-    ships = ships.filter(s => s.is_affected);
+    ships = ships.filter(s => s.status === 'DELAYED' || s.status === 'DISRUPTED' || s.status === 'AT_RISK');
   } else if (f === 'cold') {
     ships = ships.filter(s => s.cold_chain);
-  } else if (f === 'CRITICAL' || f === 'HIGH') {
-    ships = ships.filter(s => s.risk_level === f);
+  }
+
+  // Apply sort
+  const sort = state.shipmentSort;
+  if (sort.col) ships = sortArray([...ships], sort.col, sort.dir);
+
+  // Re-render thead with sort indicators
+  const sortIcon = (col) => sort.col === col ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+  const thClick = (col, label) =>
+    `<th class="sortable-th" onclick="sortShipments('${col}')">${label}${sortIcon(col)}</th>`;
+  const shipTableHead = document.querySelector('#shipmentsTable thead tr');
+  if (shipTableHead) {
+    shipTableHead.innerHTML =
+      thClick('id','ID') +
+      thClick('origin','ORIGIN') +
+      thClick('destination','DESTINATION') +
+      thClick('current_route','ROUTE') +
+      thClick('carrier','CARRIER') +
+      thClick('priority','PRIORITY') +
+      thClick('status','STATUS') +
+      thClick('expected_delay_hours','DELAY (H)') +
+      thClick('impact_score','RISK SCORE') +
+      thClick('risk_level','RISK') +
+      thClick('cold_chain','COLD CHAIN') +
+      '<th>ACTIONS</th>';
   }
 
   const tbody = document.getElementById('shipmentsTableBody');
@@ -231,10 +397,20 @@ function renderShipments() {
       <td>${riskBadge(s.risk_level, s.impact_score)}</td>
       <td>${s.cold_chain ? '<span class="cold-chain-on">❄</span>' : '<span class="text-muted">—</span>'}</td>
       <td>
-        <button class="btn-sm" onclick="event.stopPropagation(); quickRouteRec('${s.id}')">Route ▸</button>
+        <button class="btn-sm" onclick="event.stopPropagation(); showShipmentDetail('${s.id}')">Details ▸</button>
       </td>
     </tr>`;
   }).join('');
+}
+
+function sortShipments(col) {
+  if (state.shipmentSort.col === col) {
+    state.shipmentSort.dir = state.shipmentSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.shipmentSort.col = col;
+    state.shipmentSort.dir = 'asc';
+  }
+  renderShipments();
 }
 
 async function showShipmentDetail(id) {
@@ -268,24 +444,33 @@ async function showShipmentDetail(id) {
       </div>`;
   }
 
-  panel.style.display = 'block';
+  panel.style.display = 'flex';
   document.getElementById('detailContent').innerHTML = `
-    <div class="detail-field"><label>Origin</label><span>${s.origin}</span></div>
-    <div class="detail-field"><label>Destination</label><span>${s.destination}</span></div>
-    <div class="detail-field"><label>Carrier</label><span>${s.carrier}</span></div>
-    <div class="detail-field"><label>Route</label><span>${s.current_route}</span></div>
-    <div class="detail-field"><label>Priority</label><span class="badge badge-${s.priority}">${s.priority}</span></div>
-    <div class="detail-field"><label>Status</label><span class="badge badge-${s.status}">${s.status}</span></div>
-    <div class="detail-field"><label>Expected Delay</label><span>${s.expected_delay_hours > 0 ? '+' + s.expected_delay_hours + 'h' : 'None'}</span></div>
-    <div class="detail-field"><label>Risk Score</label><span>${riskBadge(s.risk_level, s.impact_score)}</span></div>
-    <div class="detail-field"><label>Cold Chain</label><span>${s.cold_chain ? '❄ Yes' : 'No'}</span></div>
+    <div class="detail-section">
+      <div class="detail-section-title">📦 Shipment Info</div>
+      <div class="detail-grid">
+        <div class="detail-field"><label>Origin</label><span>${s.origin}</span></div>
+        <div class="detail-field"><label>Destination</label><span>${s.destination}</span></div>
+        <div class="detail-field"><label>Carrier</label><span>${s.carrier}</span></div>
+        <div class="detail-field"><label>Route</label><span>${s.current_route}</span></div>
+        <div class="detail-field"><label>Priority</label><span class="badge badge-${s.priority}">${s.priority}</span></div>
+        <div class="detail-field"><label>Status</label><span class="badge badge-${s.status}">${s.status}</span></div>
+        <div class="detail-field"><label>Expected Delay</label><span>${s.expected_delay_hours > 0 ? '+' + s.expected_delay_hours + 'h' : 'None'}</span></div>
+        <div class="detail-field"><label>Risk Score</label><span>${riskBadge(s.risk_level, s.impact_score)}</span></div>
+        <div class="detail-field"><label>Cold Chain</label><span>${s.cold_chain ? '❄ Yes' : 'No'}</span></div>
+        ${s.cargo_type ? `<div class="detail-field"><label>Cargo Type</label><span>${s.cargo_type}</span></div>` : ''}
+      </div>
+    </div>
     ${s.impact_reasons && s.impact_reasons.length ? `
-    <div class="detail-field">
-      <label>Impact Reasons</label>
+    <div class="detail-section">
+      <div class="detail-section-title">⚠ Impact Reasons</div>
       <ul class="reasons-list">${s.impact_reasons.map(r => `<li>${r}</li>`).join('')}</ul>
     </div>` : ''}
     ${decisionHistoryHtml}
-    <div id="detailRouteRec" style="margin-top:12px"><p class="text-muted" style="font-size:12px">Loading recommendation...</p></div>
+    <div class="detail-section">
+      <div class="detail-section-title">🗺 Route Recommendation</div>
+      <div id="detailRouteRec"><p class="text-muted" style="font-size:12px">Loading recommendation...</p></div>
+    </div>
   `;
 
   // Load route recommendation
@@ -315,12 +500,6 @@ async function showShipmentDetail(id) {
   } catch {}
 }
 
-async function quickRouteRec(id) {
-  showSection('recommendations', document.querySelector('[data-section="recommendations"]'));
-  document.getElementById('routeShipmentSelect').value = id;
-  await loadRouteRecommendation();
-}
-
 // ── FLEET ─────────────────────────────────────────────────────────────────────
 function renderFleet() {
   const util = state.dashboard ? state.dashboard.fleet_utilisation : null;
@@ -348,9 +527,29 @@ function renderFleet() {
       </div>`;
   }
 
-  // Fleet table
+  // Fleet table with sorting
+  const sort = state.fleetSort;
+  const sortIcon = (col) => sort.col === col ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+  const thClick = (col, label) =>
+    `<th class="sortable-th" onclick="sortFleet('${col}')">${label}${sortIcon(col)}</th>`;
+  const fleetTableHead = document.querySelector('#fleetTable thead tr');
+  if (fleetTableHead) {
+    fleetTableHead.innerHTML =
+      thClick('id','ASSET') +
+      thClick('type','TYPE') +
+      thClick('location','LOCATION') +
+      thClick('status','STATUS') +
+      thClick('capacity_kg','CAPACITY (KG)') +
+      thClick('utilisation_pct','UTILISATION') +
+      thClick('refrigerated','REFRIGERATED') +
+      '<th>ASSIGNMENT</th>';
+  }
+
+  let fleetData = [...state.fleet];
+  if (sort.col) fleetData = sortArray(fleetData, sort.col, sort.dir);
+
   const tbody = document.getElementById('fleetTableBody');
-  tbody.innerHTML = state.fleet.map(a => {
+  tbody.innerHTML = fleetData.map(a => {
     const uc = a.utilisation_pct >= 80 ? 'full' : a.utilisation_pct >= 50 ? 'high' : 'low';
     return `<tr>
       <td><strong>${a.id}</strong></td>
@@ -370,7 +569,6 @@ function renderFleet() {
   }).join('');
 
   // Redeployment recommendations
-  const idle = state.dashboard ? state.dashboard.idle_fleet : [];
   const recs = state.recommendations.filter(r => r.type === 'REDEPLOY_FLEET');
   const redeployEl = document.getElementById('redeploymentList');
   redeployEl.innerHTML = recs.length ? recs.map(r => `
@@ -382,6 +580,16 @@ function renderFleet() {
 
   // Fleet pie chart
   renderFleetChart(util);
+}
+
+function sortFleet(col) {
+  if (state.fleetSort.col === col) {
+    state.fleetSort.dir = state.fleetSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.fleetSort.col = col;
+    state.fleetSort.dir = 'asc';
+  }
+  renderFleet();
 }
 
 function renderFleetChart(util) {
@@ -409,6 +617,18 @@ function renderFleetChart(util) {
       },
       cutout: '65%'
     }
+  });
+}
+
+// ── Generic sort helper ────────────────────────────────────────────────────────
+function sortArray(arr, col, dir) {
+  return arr.sort((a, b) => {
+    let va = a[col], vb = b[col];
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return dir === 'asc' ? -1 : 1;
+    if (va > vb) return dir === 'asc' ? 1 : -1;
+    return 0;
   });
 }
 
@@ -540,127 +760,6 @@ function tempClass(temp, cfg) {
   return 'ok';
 }
 
-// ── RECOMMENDATIONS ───────────────────────────────────────────────────────────
-async function renderRecommendations() {
-  // Populate ship selects — all shipments, affected first
-  const sorted = [...state.allShipments].sort((a, b) => {
-    if (a.is_affected && !b.is_affected) return -1;
-    if (!a.is_affected && b.is_affected) return 1;
-    return 0;
-  });
-  const opts = sorted
-    .map(s => `<option value="${s.id}">${s.id} — ${s.origin}→${s.destination} (${s.risk_level})${s.is_affected ? ' ⚠' : ''}</option>`)
-    .join('');
-  document.getElementById('routeShipmentSelect').innerHTML =
-    '<option value="">— choose shipment —</option>' + opts;
-  document.getElementById('carrierShipmentSelect').innerHTML =
-    '<option value="">— choose shipment —</option>' + opts;
-
-  // All recommendations
-  const recs = state.recommendations;
-  document.getElementById('allRecommendations').innerHTML = recs.length
-    ? recs.map(r => recItemHtml(r)).join('')
-    : '<p class="text-muted">No recommendations at this time.</p>';
-}
-
-async function loadRouteRecommendation() {
-  const sid = document.getElementById('routeShipmentSelect').value;
-  if (!sid) return;
-  const el = document.getElementById('routeRecResult');
-  el.innerHTML = '<p class="text-muted" style="font-size:12px">Loading...</p>';
-
-  const decisionKey = 'route:' + sid;
-  const existing = state.decisions[decisionKey];
-
-  try {
-    const rec = await apiPost('/api/routes/recommend', { shipment_id: sid });
-    const s = state.allShipments.find(x => x.id === sid);
-    const currentRoute = rec.current_route || (s ? s.current_route : '');
-    const recommendedRoute = rec.recommended_route || 'N/A';
-    const routeName = rec.recommended_route_name || '';
-
-    // Store rec data on the key so approve can reference it
-    if (!existing) {
-      state.decisions[decisionKey + '_data'] = { currentRoute, recommendedRoute, routeName, shipmentId: sid };
-    }
-
-    const beforeAfter = `
-      <div class="rec-before-after">
-        <div class="rec-box">
-          <div style="font-size:11px; color:var(--muted)">CURRENT ROUTE</div>
-          <strong>${currentRoute}</strong>
-          ${s ? `<br><small class="text-muted">${s.origin} → ${s.destination}</small>` : ''}
-        </div>
-        <div class="rec-arrow">→</div>
-        <div class="rec-box" style="border-color:var(--accent)">
-          <div style="font-size:11px; color:var(--accent)">RECOMMENDED ROUTE</div>
-          <strong style="color:var(--accent)">${recommendedRoute}</strong>
-          <br><small>${routeName}</small>
-        </div>
-      </div>
-      ${rec.additional_hours > 0 ? `<p style="font-size:12px">⏱ Additional time: <strong>+${rec.additional_hours}h</strong></p>` : ''}
-      ${rec.cost_usd ? `<p style="font-size:12px">💰 Estimated cost: <strong>USD ${rec.cost_usd.toLocaleString()}</strong></p>` : ''}
-      <p style="font-size:12.5px; margin-top:6px; color:var(--muted)">${rec.reason}</p>`;
-
-    if (existing) {
-      // Already decided — show banner, no buttons
-      el.innerHTML = beforeAfter + decisionBanner(existing.status, existing.label, existing.at, existing.note);
-    } else {
-      // Show approve / reject buttons
-      el.innerHTML = beforeAfter + `
-        <div class="rec-action-row" id="routeActionRow_${sid}">
-          <button class="btn-approve" onclick="approveRec('route','${sid}','${escapeAttr(recommendedRoute)}','${escapeAttr(routeName)}')">✓ Approve Route Change</button>
-          <button class="btn-reject"  onclick="rejectRec('route','${sid}')">✕ Reject</button>
-        </div>`;
-    }
-  } catch(e) {
-    el.textContent = 'Error loading recommendation.';
-  }
-}
-
-async function loadCarrierRecommendation() {
-  const sid = document.getElementById('carrierShipmentSelect').value;
-  if (!sid) return;
-  const el = document.getElementById('carrierRecResult');
-  el.innerHTML = '<p class="text-muted" style="font-size:12px">Loading...</p>';
-
-  const decisionKey = 'carrier:' + sid;
-  const existing = state.decisions[decisionKey];
-
-  try {
-    const rec = await apiPost('/api/carriers/recommend', { shipment_id: sid, required_capacity_kg: 5000 });
-
-    const beforeAfter = `
-      <div class="rec-before-after">
-        <div class="rec-box">
-          <div style="font-size:11px; color:var(--muted)">CURRENT CARRIER</div>
-          <strong>${rec.current_carrier}</strong>
-          <br><small>${rec.current_carrier_name}</small>
-        </div>
-        <div class="rec-arrow">→</div>
-        <div class="rec-box" style="border-color:var(--accent)">
-          <div style="font-size:11px; color:var(--accent)">RECOMMENDED CARRIER</div>
-          <strong style="color:var(--accent)">${rec.recommended_carrier}</strong>
-          <br><small>${rec.recommended_carrier_name}</small>
-        </div>
-      </div>
-      <p style="font-size:12.5px; margin-top:6px; color:var(--muted)">${rec.reason}</p>
-      ${rec.expected_impact ? `<p style="font-size:12px; color:var(--accent); margin-top:4px">📈 ${rec.expected_impact}</p>` : ''}`;
-
-    if (existing) {
-      el.innerHTML = beforeAfter + decisionBanner(existing.status, existing.label, existing.at, existing.note);
-    } else {
-      el.innerHTML = beforeAfter + `
-        <div class="rec-action-row" id="carrierActionRow_${sid}">
-          <button class="btn-approve" onclick="approveRec('carrier','${sid}','${escapeAttr(rec.recommended_carrier)}','${escapeAttr(rec.recommended_carrier_name)}')">✓ Approve Carrier Change</button>
-          <button class="btn-reject"  onclick="rejectRec('carrier','${sid}')">✕ Reject</button>
-        </div>`;
-    }
-  } catch(e) {
-    el.textContent = 'Error loading recommendation.';
-  }
-}
-
 // ── Approve / Reject logic ────────────────────────────────────────────────────
 function approveRec(type, shipmentId, value, label) {
   const decisionKey = type + ':' + shipmentId;
@@ -691,10 +790,8 @@ function approveRec(type, shipmentId, value, label) {
     }
   }
 
-  // Re-render table row + refresh the result panel
+  // Re-render table immediately with the badge
   renderShipments();
-  if (type === 'route')   loadRouteRecommendation();
-  else                    loadCarrierRecommendation();
 }
 
 function rejectRec(type, shipmentId) {
@@ -710,8 +807,8 @@ function rejectRec(type, shipmentId) {
     note: type === 'route' ? 'Route change rejected — keeping current route.' : 'Carrier change rejected — keeping current carrier.'
   };
 
-  if (type === 'route')   loadRouteRecommendation();
-  else                    loadCarrierRecommendation();
+  // Re-render table immediately with the badge
+  renderShipments();
 }
 
 function decisionBanner(status, label, at, note) {
@@ -741,34 +838,172 @@ async function runSimulation(scenario, target = '') {
   resultEl.style.display = 'block';
   contentEl.innerHTML = '<div class="loading-spinner" style="width:24px;height:24px;border-width:2px;margin:12px auto"></div>';
 
+  // Highlight the clicked card
+  document.querySelectorAll('.sim-card').forEach(c => c.classList.remove('sim-active'));
+
   try {
     const body = target ? { scenario, target } : { scenario };
     const result = await apiPost('/api/simulation', body);
 
+    // Apply extra local effects on top of backend result
+    applySimulationEffects(scenario);
+
     titleEl.textContent = result.success ? '✓ Simulation Applied' : '✗ Simulation Failed';
+
+    const before = result.before || {};
+    const after  = result.after  || {};
+
+    // Compute enhanced deltas
+    const affDelta  = (after.affected_shipments  || 0) - (before.affected_shipments  || 0);
+    const coldDelta = (after.cold_chain_alerts    || 0) - (before.cold_chain_alerts   || 0);
+    const idleDelta = (after.idle_assets          || 0) - (before.idle_assets         || 0);
+
     contentEl.innerHTML = `
       <p style="margin-bottom:12px; font-size:13px">${result.message}</p>
       ${result.before ? `
       <div class="sim-compare">
         <div class="sim-col">
           <h4>Before</h4>
-          <div class="sim-metric">Affected Shipments <span>${result.before.affected_shipments}</span></div>
-          <div class="sim-metric">Idle Assets <span>${result.before.idle_assets}</span></div>
-          <div class="sim-metric">Cold-Chain Alerts <span>${result.before.cold_chain_alerts}</span></div>
+          <div class="sim-metric">Affected Shipments <span>${before.affected_shipments}</span></div>
+          <div class="sim-metric">Idle Assets <span>${before.idle_assets}</span></div>
+          <div class="sim-metric">Cold-Chain Alerts <span>${before.cold_chain_alerts}</span></div>
+          <div class="sim-metric">High/Critical Risks <span>${before.high_critical_risks || '—'}</span></div>
         </div>
         <div class="sim-col">
           <h4>After</h4>
-          <div class="sim-metric">Affected Shipments <span class="${result.after.affected_shipments > result.before.affected_shipments ? 'delta-up' : 'delta-down'}">${result.after.affected_shipments}</span></div>
-          <div class="sim-metric">Idle Assets <span>${result.after.idle_assets}</span></div>
-          <div class="sim-metric">Cold-Chain Alerts <span class="${result.after.cold_chain_alerts > result.before.cold_chain_alerts ? 'delta-up' : ''}">${result.after.cold_chain_alerts}</span></div>
+          <div class="sim-metric">Affected Shipments <span class="${affDelta > 0 ? 'delta-up' : 'delta-down'}">${after.affected_shipments} ${affDelta !== 0 ? '(' + (affDelta > 0 ? '+' : '') + affDelta + ')' : ''}</span></div>
+          <div class="sim-metric">Idle Assets <span class="${idleDelta > 0 ? 'delta-up' : ''}">${after.idle_assets}</span></div>
+          <div class="sim-metric">Cold-Chain Alerts <span class="${coldDelta > 0 ? 'delta-up' : ''}">${after.cold_chain_alerts} ${coldDelta !== 0 ? '(' + (coldDelta > 0 ? '+' : '') + coldDelta + ')' : ''}</span></div>
+          <div class="sim-metric">High/Critical Risks <span class="${(after.high_critical_risks || 0) > (before.high_critical_risks || 0) ? 'delta-up' : 'delta-down'}">${after.high_critical_risks || '—'}</span></div>
         </div>
-      </div>` : ''}`;
+      </div>` : ''}
+      <div class="sim-impact-list" id="simImpactList"></div>`;
 
     // Refresh data to reflect simulation
     await refreshAll();
+    renderSimImpactSummary(scenario);
   } catch(e) {
     contentEl.textContent = 'Error running simulation: ' + e.message;
   }
+}
+
+// Apply local effects to shipments & fleet data to make simulations more visible
+function applySimulationEffects(scenario) {
+  if (scenario === 'reset') return;
+
+  const ships = state.allShipments;
+
+  if (scenario === 'weather_disruption') {
+    // Gujarat corridor routes R01, R05 — mark more shipments as DISRUPTED
+    ships.forEach(s => {
+      if (['R01','R05','R08'].includes(s.current_route) && s.status !== 'DISRUPTED') {
+        s.status = 'DISRUPTED';
+        s.risk_level = s.risk_level === 'LOW' ? 'MEDIUM' : 'HIGH';
+        s.expected_delay_hours = Math.max(s.expected_delay_hours, 18 + Math.floor(Math.random() * 24));
+        s.impact_score = Math.min(s.impact_score + 30, 100);
+        s.is_affected = true;
+      }
+    });
+  } else if (scenario === 'road_closure') {
+    // Delhi-Jaipur R06 — close it, delay all on R10, R12 too
+    ships.forEach(s => {
+      if (['R06','R10','R12'].includes(s.current_route)) {
+        s.status = 'DELAYED';
+        s.expected_delay_hours = Math.max(s.expected_delay_hours, 12 + Math.floor(Math.random() * 12));
+        s.risk_level = 'HIGH';
+        s.impact_score = Math.min(s.impact_score + 25, 100);
+        s.is_affected = true;
+      }
+    });
+    // Make some fleet idle
+    state.fleet.forEach(a => {
+      if (a.location === 'Delhi' && a.status === 'IN_TRANSIT') {
+        a.status = 'IDLE';
+        a.utilisation_pct = Math.max(0, a.utilisation_pct - 40);
+      }
+    });
+  } else if (scenario === 'port_strike') {
+    // Chennai port — affect all vessel routes from/to Chennai
+    ships.forEach(s => {
+      if ((s.origin === 'Chennai' || s.destination === 'Chennai') && s.vehicle_id && s.vehicle_id.startsWith('V')) {
+        s.status = 'DISRUPTED';
+        s.expected_delay_hours = Math.max(s.expected_delay_hours, 48 + Math.floor(Math.random() * 48));
+        s.risk_level = 'CRITICAL';
+        s.impact_score = Math.min(s.impact_score + 40, 100);
+        s.is_affected = true;
+      }
+    });
+    state.fleet.forEach(a => {
+      if (a.location === 'Chennai' && a.type === 'VESSEL') {
+        a.status = 'IDLE';
+        a.utilisation_pct = 0;
+      }
+    });
+  } else if (scenario === 'carrier_unavailable') {
+    // PrimeFreight = C01 — all C01 shipments become AT_RISK
+    ships.forEach(s => {
+      if (s.carrier === 'C01') {
+        s.status = s.status === 'ON_TIME' ? 'AT_RISK' : s.status;
+        s.risk_level = s.risk_level === 'LOW' ? 'MEDIUM' : 'HIGH';
+        s.impact_score = Math.min(s.impact_score + 20, 100);
+        s.is_affected = true;
+      }
+    });
+    // Redeploy some idle fleet
+    state.fleet.forEach(a => {
+      if (a.status === 'IDLE') {
+        a.status = 'IN_TRANSIT';
+        a.utilisation_pct = 70 + Math.floor(Math.random() * 20);
+      }
+    });
+  } else if (scenario === 'demand_increase') {
+    // Mumbai-Delhi corridor R01, R11 — push all to HIGH risk
+    ships.forEach(s => {
+      if (['R01','R11'].includes(s.current_route)) {
+        s.risk_level = 'HIGH';
+        s.impact_score = Math.min(s.impact_score + 15, 100);
+      }
+    });
+    // All trucks near full capacity
+    state.fleet.forEach(a => {
+      if (a.type === 'TRUCK') {
+        a.utilisation_pct = Math.min(95, a.utilisation_pct + 25);
+      }
+    });
+  } else if (scenario === 'temperature_excursion') {
+    // SH1016 becomes CRITICAL cold chain
+    const s = ships.find(x => x.id === 'SH1016');
+    if (s) {
+      s.status = 'DISRUPTED';
+      s.risk_level = 'CRITICAL';
+      s.impact_score = 95;
+      s.expected_delay_hours = Math.max(s.expected_delay_hours, 24);
+      s.is_affected = true;
+    }
+  }
+}
+
+function renderSimImpactSummary(scenario) {
+  const el = document.getElementById('simImpactList');
+  if (!el) return;
+
+  const impactMap = {
+    weather_disruption: ['Routes R01, R05, R08 affected — expect 18–42h delays', 'Gujarat corridor shipments rerouted via alternative highways', 'Cold-chain shipments on affected routes flagged for monitoring'],
+    road_closure: ['Delhi–Jaipur highway (R06) closed — vehicles rerouted via R10', 'Fleet assets in Delhi area idled awaiting rerouting orders', 'Estimated impact: 12–24h additional transit time on affected routes'],
+    port_strike: ['Chennai port operations suspended — all vessel departures halted', 'Container and vessel fleet in Chennai marked idle', 'Sea freight affected: expect 48–96h delays on Chennai-origin shipments'],
+    carrier_unavailable: ['PrimeFreight (C01) fleet recalled — shipments at risk', 'Alternative carriers being evaluated for affected shipments', 'Idle fleet assets being considered for redeployment'],
+    demand_increase: ['5 urgent shipments added to Mumbai–Delhi corridor', 'Truck fleet utilisation near capacity — limited slack available', 'Consider activating standby carriers for overflow capacity'],
+    temperature_excursion: ['SH1016 vaccine shipment: critical temperature breach detected', 'Cold-chain integrity compromised — immediate intervention required', 'Notify quality control and destination pharmacy immediately']
+  };
+
+  const impacts = impactMap[scenario] || [];
+  if (!impacts.length) return;
+
+  el.innerHTML = `
+    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border)">
+      <strong style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px">Impact Summary</strong>
+      ${impacts.map(i => `<div class="sim-impact-item">⚡ ${i}</div>`).join('')}
+    </div>`;
 }
 
 // ── BOB AI ────────────────────────────────────────────────────────────────────
@@ -788,16 +1023,19 @@ async function sendBobMessage() {
   // User message
   chat.innerHTML += `
     <div class="bob-msg bob-msg-user">
-      <div class="bob-avatar" style="background:var(--surface2); color:var(--text)">👤</div>
-      <div class="bob-bubble">${escapeHtml(q)}</div>
+      <div class="bob-avatar bob-avatar-user">U</div>
+      <div class="bob-bubble bob-bubble-user">${escapeHtml(q)}</div>
     </div>`;
 
   // Thinking indicator
   const thinkId = 'bob-think-' + Date.now();
   chat.innerHTML += `
     <div class="bob-msg" id="${thinkId}">
-      <div class="bob-avatar">🤖</div>
-      <div class="bob-bubble" style="color:var(--muted)">Analysing supply chain data...</div>
+      <div class="bob-avatar">✦</div>
+      <div class="bob-bubble bob-thinking">
+        <span class="bob-dot"></span><span class="bob-dot"></span><span class="bob-dot"></span>
+        Analysing supply chain data...
+      </div>
     </div>`;
   chat.scrollTop = chat.scrollHeight;
 
@@ -807,7 +1045,7 @@ async function sendBobMessage() {
     if (thinking) thinking.remove();
     chat.innerHTML += `
       <div class="bob-msg">
-        <div class="bob-avatar">🤖</div>
+        <div class="bob-avatar">✦</div>
         <div class="bob-bubble">${escapeHtml(resp.answer)}</div>
       </div>`;
   } catch(e) {
@@ -815,8 +1053,8 @@ async function sendBobMessage() {
     if (thinking) thinking.remove();
     chat.innerHTML += `
       <div class="bob-msg">
-        <div class="bob-avatar">🤖</div>
-        <div class="bob-bubble" style="color:var(--danger)">Error connecting to backend: ${escapeHtml(e.message)}</div>
+        <div class="bob-avatar">✦</div>
+        <div class="bob-bubble bob-bubble-error">Error connecting to backend: ${escapeHtml(e.message)}</div>
       </div>`;
   }
   chat.scrollTop = chat.scrollHeight;
@@ -851,14 +1089,19 @@ function recTypeIcon(type) {
   return icons[type] || '📋';
 }
 
-function recItemHtml(r) {
+function recItemHtml(r, clickable) {
+  const shipmentId = r.target || '';
+  const clickAttr = clickable && shipmentId
+    ? `style="cursor:pointer" onclick="goToShipment('${shipmentId}')" title="Click to view shipment and take action"`
+    : '';
   return `
-    <div class="rec-item priority-${r.priority}">
+    <div class="rec-item priority-${r.priority}" ${clickAttr}>
       <div class="rec-icon">${recTypeIcon(r.type)}</div>
       <div class="rec-content">
         <div class="rec-action">${r.action}</div>
         <div class="rec-reason">${r.reason}</div>
         ${r.expected_impact ? `<div class="rec-impact">${r.expected_impact}</div>` : ''}
+        ${clickable && shipmentId ? `<div style="font-size:11px; color:var(--accent); margin-top:4px; font-weight:600;">→ Click to approve/reject in Shipments tab</div>` : ''}
       </div>
       <span class="badge badge-${r.priority}" style="align-self:flex-start; flex-shrink:0">${r.priority}</span>
     </div>`;
