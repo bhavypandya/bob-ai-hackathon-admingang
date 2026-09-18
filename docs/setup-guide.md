@@ -1,4 +1,4 @@
-# Setup Guide
+﻿# Setup Guide
 
 ## Prerequisites
 
@@ -12,12 +12,12 @@
 **No Python, Node.js, or external package managers required.**
 
 All dependencies are bundled in the repository:
-- `src/third_party/sqlite/` — SQLite 3.46 amalgamation
-- `src/third_party/nlohmann/` — nlohmann/json v3.11.3 (header-only)
+- `src/third_party/sqlite/` â€” SQLite 3.46 amalgamation
+- `src/third_party/nlohmann/` â€” nlohmann/json v3.11.3 (header-only)
 
 ---
 
-## Quick Start (Windows — MinGW)
+## Quick Start (Windows â€” MinGW)
 
 ### Step 1: Clone the repository
 
@@ -41,15 +41,16 @@ The script will:
 
 ### Step 3: Run the backend
 
-```batch
-src\build\bin\supply_chain_backend.exe --frontend src\frontend
-```
+Use the root launcher (handles cd automatically):
+``batch
+start_server.bat
+``r
 
-Or with the auto-copied frontend:
-```batch
+Or manually:
+``batch
 cd src\build\bin
-supply_chain_backend.exe
-```
+supply_chain_backend.exe --frontend .\frontend
+``
 
 ### Step 4: Open the dashboard
 
@@ -120,10 +121,10 @@ src\build\bin\run_tests.exe
 
 Expected output:
 ```
-=== Supply Chain Assistant — Unit Tests ===
+=== Supply Chain Assistant â€” Unit Tests ===
 
-── Disruption Tests ──────────────────
-  ✓  Active disruptions loaded from seed data
+â”€â”€ Disruption Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  âœ“  Active disruptions loaded from seed data
   ...
 
 Results: 67 passed, 0 failed
@@ -225,3 +226,4 @@ The frontend cannot connect to the backend. Check:
 1. The backend executable is running
 2. It is listening on port 8080 (check console output)
 3. No firewall is blocking localhost connections
+

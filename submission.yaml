@@ -2,56 +2,68 @@ team:
   name: "AdminGang"
   track: "AI"
   lead:
-    name: "AdminGang Team Lead"
+    name: "Bhavy Pandya"
     email: "admingang@example.com"
   members:
-    - name: "Team Member 1"
-      email: "member1@example.com"
-    - name: "Team Member 2"
-      email: "member2@example.com"
-    - name: "Team Member 3"
-      email: "member3@example.com"
+    - name: "Johan Bhalsod"
+      email: "admingang@example.com"
+    - name: "Dhyan Chovatiya"
+      email: "admingang@example.com"
+    - name: "Naman Dhameliya"
+      email: "admingang@example.com"
 
 submission:
   title: "SupplyGuard — Supply Chain Disruption Assistant & Fleet Optimizer"
 
   problem_statement: >
-    Supply chain disruptions such as weather events, port strikes, and route closures
-    cascade across hundreds of active shipments simultaneously. Operations managers
+    Supply chain disruptions such as weather events, port strikes, road closures, and carrier
+    outages cascade across hundreds of active shipments simultaneously. Operations managers
     cannot track affected shipments, identify idle fleet assets, or monitor cold-chain
-    temperature excursions manually across a large, dynamic supply network.
+    temperature excursions manually across a large, dynamic supply network in real time.
+    The result is delayed responses, missed redeployment opportunities, and compromised
+    temperature-sensitive cargo.
 
   solution_summary: >
-    SupplyGuard is a C++ backend + web dashboard that automatically identifies
-    disrupted shipments, scores their risk (0-100), recommends alternative routes
-    and carriers, detects idle fleet assets for redeployment, monitors cold-chain
-    IoT sensor data for temperature excursions, and presents everything through
-    an integrated Bob AI assistant that answers natural language operational questions.
+    SupplyGuard is a C++ backend + web dashboard that automatically identifies disrupted
+    shipments, scores their risk (0-100) with explainable per-shipment reasons, recommends
+    alternative routes and carriers (with one-click approve/reject), detects idle fleet assets
+    for redeployment, monitors cold-chain IoT sensor data for temperature excursions, and
+    presents everything through an integrated Bob AI assistant that answers natural language
+    operational questions using live backend data. The dashboard features 74 realistic
+    shipments, sortable tables, a fullscreen disruption detail modal, and a redesigned
+    Bob AI page with quick-question sidebar.
 
   key_features:
     - "Disruption impact analysis with explainable risk scoring (0-100) for every affected shipment"
-    - "Real-time route and carrier recommendations based on availability, risk, cost, and capacity"
+    - "Fullscreen disruption detail modal showing description, metadata, and all affected shipments"
+    - "One-click approve/reject route and carrier recommendations directly from the shipment detail panel"
     - "Fleet utilisation optimisation with idle asset detection and redeployment recommendations"
     - "Cold-chain IoT temperature monitoring with configurable excursion severity classification"
-    - "Bob AI assistant answering natural language operational questions from live backend data"
+    - "Sortable column headers on Overview, Shipments, and Fleet tables"
+    - "What-if simulation engine with 6 scenario types and visible before/after impact"
+    - "74 realistic shipments across all major Indian supply chain corridors"
+    - "Redesigned Bob AI page with two-column chat layout and quick-question sidebar"
+    - "Priority recommendations on Overview page link directly to the relevant shipment"
 
   tech_stack:
     languages: ["C++17", "HTML5", "CSS3", "JavaScript"]
-    frameworks: ["Custom C++ HTTP server", "Chart.js"]
+    frameworks: ["Custom C++ HTTP server (raw sockets)", "Chart.js"]
     ibm_technologies: ["IBM Bob AI"]
-    databases: ["SQLite3"]
-    other: ["nlohmann/json", "MinGW/GCC", "CMake"]
+    databases: ["SQLite3 (in-memory, bundled amalgamation)"]
+    other: ["nlohmann/json (header-only)", "MinGW/GCC"]
 
   what_we_are_most_proud_of: >
     The complete end-to-end workflow from disruption detection through risk scoring,
     route/carrier recommendation, fleet redeployment, cold-chain monitoring, and Bob AI
-    integration — all implemented in C++ with zero external HTTP dependencies, running
-    with a single executable. The Bob AI assistant connects directly to live backend
-    data and provides explainable, data-driven operational guidance rather than
-    hardcoded responses.
+    integration — all implemented in C++17 with zero external HTTP dependencies, running
+    as a single executable. The Bob AI assistant connects directly to live backend data
+    and provides explainable, data-driven operational guidance. The polished dashboard UI
+    with sortable tables, fullscreen disruption modals, 74 realistic shipments, and a
+    redesigned Bob AI page delivers a genuinely usable operations tool.
 
   known_limitations: >
     The HTTP server is single-threaded (handles one connection at a time) for simplicity.
+    Approve/reject decisions exist only in browser session memory — page refresh resets them.
     Cold-chain severity classifications are based on configured product thresholds and
     should be reviewed against applicable product handling requirements — no regulatory
     ruleset has been formally implemented. Route recommendations use heuristic scoring
@@ -63,6 +75,5 @@ artifacts:
   setup_guide: "docs/setup-guide.md"
   architecture_doc: "docs/architecture.md"
   demo_video: "demo/demo-video-link.txt"
-  live_demo: "demo/live-demo-url.txt"
   screenshots: "demo/screenshots/"
   presentation: "presentation/"

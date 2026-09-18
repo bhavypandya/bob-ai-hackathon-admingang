@@ -1,4 +1,4 @@
-# SupplyGuard — `src/` Documentation
+﻿# SupplyGuard â€” `src/` Documentation
 
 > Complete reference for the architecture, components, and data flows inside the `src/` directory.
 
@@ -37,47 +37,47 @@
 
 ```
 src/
-├── backend/
-│   ├── main.cpp                    # TCP HTTP server + route registration
-│   ├── api/
-│   │   ├── api_handler.h           # Handler function declarations
-│   │   └── api_handler.cpp         # All REST endpoint implementations
-│   ├── database/
-│   │   ├── database.h              # RAII SQLite wrapper interface
-│   │   └── database.cpp            # Schema creation, seed data, query helpers
-│   ├── models/
-│   │   ├── shipment.h              # Shipment struct + enums
-│   │   ├── disruption.h            # Disruption struct + enums
-│   │   ├── route.h                 # Route struct
-│   │   ├── carrier.h               # Carrier struct
-│   │   ├── fleet_asset.h           # FleetAsset struct + enums
-│   │   ├── cold_chain.h            # ColdChainAlert, SensorReading, Config
-│   │   └── recommendation.h        # Recommendation struct + enums
-│   └── services/
-│       ├── shipment_service.cpp/.h      # Impact scoring, affected shipment logic
-│       ├── disruption_service.cpp/.h    # Active disruption queries + mutations
-│       ├── route_service.cpp/.h         # Route recommendation algorithm
-│       ├── carrier_service.cpp/.h       # Carrier recommendation algorithm
-│       ├── fleet_service.cpp/.h         # Fleet utilisation + redeployment
-│       ├── cold_chain_service.cpp/.h    # Temperature excursion classification
-│       ├── recommendation_service.cpp/.h# Aggregates all recommendation types
-│       └── simulation_service.cpp/.h    # What-if scenario engine
-├── frontend/
-│   ├── index.html                  # Single-page app shell
-│   ├── css/dashboard.css           # Complete design system
-│   └── js/dashboard.js             # All UI logic, state, API calls
-├── tests/
-│   ├── test_main.cpp               # Custom TAP runner + entry point
-│   ├── test_disruption.cpp
-│   ├── test_routing.cpp
-│   ├── test_carrier.cpp
-│   ├── test_fleet.cpp
-│   └── test_cold_chain.cpp
-├── third_party/
-│   ├── nlohmann/json.hpp           # Header-only JSON library
-│   └── sqlite/sqlite3.c/.h         # Bundled SQLite amalgamation
-├── build.bat                       # Windows MinGW build script
-└── build.sh                        # Linux/macOS build script
+â”œâ”€â”€ backend/
+â”‚   â”œâ”€â”€ main.cpp                    # TCP HTTP server + route registration
+â”‚   â”œâ”€â”€ api/
+â”‚   â”‚   â”œâ”€â”€ api_handler.h           # Handler function declarations
+â”‚   â”‚   â””â”€â”€ api_handler.cpp         # All REST endpoint implementations
+â”‚   â”œâ”€â”€ database/
+â”‚   â”‚   â”œâ”€â”€ database.h              # RAII SQLite wrapper interface
+â”‚   â”‚   â””â”€â”€ database.cpp            # Schema creation, seed data, query helpers
+â”‚   â”œâ”€â”€ models/
+â”‚   â”‚   â”œâ”€â”€ shipment.h              # Shipment struct + enums
+â”‚   â”‚   â”œâ”€â”€ disruption.h            # Disruption struct + enums
+â”‚   â”‚   â”œâ”€â”€ route.h                 # Route struct
+â”‚   â”‚   â”œâ”€â”€ carrier.h               # Carrier struct
+â”‚   â”‚   â”œâ”€â”€ fleet_asset.h           # FleetAsset struct + enums
+â”‚   â”‚   â”œâ”€â”€ cold_chain.h            # ColdChainAlert, SensorReading, Config
+â”‚   â”‚   â””â”€â”€ recommendation.h        # Recommendation struct + enums
+â”‚   â””â”€â”€ services/
+â”‚       â”œâ”€â”€ shipment_service.cpp/.h      # Impact scoring, affected shipment logic
+â”‚       â”œâ”€â”€ disruption_service.cpp/.h    # Active disruption queries + mutations
+â”‚       â”œâ”€â”€ route_service.cpp/.h         # Route recommendation algorithm
+â”‚       â”œâ”€â”€ carrier_service.cpp/.h       # Carrier recommendation algorithm
+â”‚       â”œâ”€â”€ fleet_service.cpp/.h         # Fleet utilisation + redeployment
+â”‚       â”œâ”€â”€ cold_chain_service.cpp/.h    # Temperature excursion classification
+â”‚       â”œâ”€â”€ recommendation_service.cpp/.h# Aggregates all recommendation types
+â”‚       â””â”€â”€ simulation_service.cpp/.h    # What-if scenario engine
+â”œâ”€â”€ frontend/
+â”‚   â”œâ”€â”€ index.html                  # Single-page app shell
+â”‚   â”œâ”€â”€ css/dashboard.css           # Complete design system
+â”‚   â””â”€â”€ js/dashboard.js             # All UI logic, state, API calls
+â”œâ”€â”€ tests/
+â”‚   â”œâ”€â”€ test_main.cpp               # Custom TAP runner + entry point
+â”‚   â”œâ”€â”€ test_disruption.cpp
+â”‚   â”œâ”€â”€ test_routing.cpp
+â”‚   â”œâ”€â”€ test_carrier.cpp
+â”‚   â”œâ”€â”€ test_fleet.cpp
+â”‚   â””â”€â”€ test_cold_chain.cpp
+â”œâ”€â”€ third_party/
+â”‚   â”œâ”€â”€ nlohmann/json.hpp           # Header-only JSON library
+â”‚   â””â”€â”€ sqlite/sqlite3.c/.h         # Bundled SQLite amalgamation
+â”œâ”€â”€ build.bat                       # Windows MinGW build script
+â””â”€â”€ build.sh                        # Linux/macOS build script
 ```
 
 > **Deploy note:** `src/build/bin/frontend/` is the directory the backend actually serves. After editing `src/frontend/` files, copy them to `src/build/bin/frontend/`.
@@ -102,7 +102,7 @@ src/
 
 ### 3.1 HTTP Server (`main.cpp`)
 
-The server is built entirely from BSD sockets with no HTTP framework. It is **single-threaded** — one connection is handled at a time.
+The server is built entirely from BSD sockets with no HTTP framework. It is **single-threaded** â€” one connection is handled at a time.
 
 #### Core types
 
@@ -115,15 +115,15 @@ using  Handler = function<HttpResponse(const HttpRequest&)>;
 #### Request lifecycle
 
 ```
-accept() → handleConnection()
-              → recv() loop (reads until \r\n\r\n + Content-Length bytes)
-              → parseRequest()   — splits method/path/headers/body
-              → dispatch()       — linear scan of g_routes vector
-                   → matchPath() — segments URL by '/', matches {param} placeholders
-                   → route.handler(req)
-              → buildResponse()  — serialises status line + CORS headers
-              → send()
-              → CLOSE_SOCKET()
+accept() â†’ handleConnection()
+              â†’ recv() loop (reads until \r\n\r\n + Content-Length bytes)
+              â†’ parseRequest()   â€” splits method/path/headers/body
+              â†’ dispatch()       â€” linear scan of g_routes vector
+                   â†’ matchPath() â€” segments URL by '/', matches {param} placeholders
+                   â†’ route.handler(req)
+              â†’ buildResponse()  â€” serialises status line + CORS headers
+              â†’ send()
+              â†’ CLOSE_SOCKET()
 ```
 
 #### Path parameter extraction
@@ -137,9 +137,9 @@ Matched params are injected into the request headers under special keys:
 Three hardcoded routes serve frontend files relative to `frontend_dir` (defaults to `./frontend`, resolved from CWD at launch):
 
 ```
-GET /                    → frontend_dir/index.html
-GET /css/dashboard.css   → frontend_dir/css/dashboard.css
-GET /js/dashboard.js     → frontend_dir/js/dashboard.js
+GET /                    â†’ frontend_dir/index.html
+GET /css/dashboard.css   â†’ frontend_dir/css/dashboard.css
+GET /js/dashboard.js     â†’ frontend_dir/js/dashboard.js
 ```
 
 Adding a new frontend file requires a new `addRoute()` call in `main.cpp`.
@@ -149,10 +149,10 @@ Adding a new frontend file requires a new `addRoute()` call in `main.cpp`.
 ```
 1. Parse CLI args (--port, --db, --frontend)
 2. WSAStartup() on Windows
-3. initDB(db_path)         — creates schema + seeds all data
-4. Instantiate 8 services  — all take db::Database& by reference
+3. initDB(db_path)         â€” creates schema + seeds all data
+4. Instantiate 8 services  â€” all take db::Database& by reference
 5. Register ~20 API routes + 4 static file routes
-6. bind() → listen() → accept() loop
+6. bind() â†’ listen() â†’ accept() loop
 ```
 
 ---
@@ -171,7 +171,7 @@ class Database {
     void resetToSeedState();                               // used by simulation reset
     sqlite3* handle();                                     // raw handle (rarely needed)
 };
-Database& getDB();           // singleton accessor — throws if initDB() not called
+Database& getDB();           // singleton accessor â€” throws if initDB() not called
 void initDB(const string&);  // must be called before getDB()
 ```
 
@@ -187,8 +187,8 @@ db_.query("SELECT * FROM shipments", [&](int c, const char** v, const char** n) 
 
 #### Key behaviours
 
-- **Always `:memory:`** in production — all data is lost on server restart
-- Constructor calls `createSchema()` → `seedData()` every time
+- **Always `:memory:`** in production â€” all data is lost on server restart
+- Constructor calls `createSchema()` â†’ `seedData()` every time
 - `resetToSeedState()` executes `DELETE FROM <table>` + re-runs all seed functions
 - All raw SQL is concatenated strings (no prepared statement API exposed to services)
 - `exec()` throws `std::runtime_error` on any SQLite error
@@ -197,22 +197,22 @@ db_.query("SELECT * FROM shipments", [&](int c, const char** v, const char** n) 
 
 ### 3.3 Domain Models
 
-All models live in `backend/models/` as **header-only plain structs**. They contain no database logic and no JSON serialisation — that belongs to the service and API layers respectively.
+All models live in `backend/models/` as **header-only plain structs**. They contain no database logic and no JSON serialisation â€” that belongs to the service and API layers respectively.
 
 Every model that uses enums provides static converter methods:
 
 ```cpp
 static string statusToString(ShipmentStatus s);
 static string priorityToString(ShipmentPriority p);
-static string riskLabel(int score);   // 0-24→LOW, 25-49→MEDIUM, 50-74→HIGH, 75+→CRITICAL
+static string riskLabel(int score);   // 0-24â†’LOW, 25-49â†’MEDIUM, 50-74â†’HIGH, 75+â†’CRITICAL
 ```
 
 #### Model summary
 
 | Model | Notable fields |
 |---|---|
-| `Shipment` | `impact_score` (0–100), `is_affected`, `risk_level`, `impact_reasons` — computed at query time, not stored in DB |
-| `Disruption` | `affected_routes: vector<string>` — parsed from comma-separated DB column |
+| `Shipment` | `impact_score` (0â€“100), `is_affected`, `risk_level`, `impact_reasons` â€” computed at query time, not stored in DB |
+| `Disruption` | `affected_routes: vector<string>` â€” parsed from comma-separated DB column |
 | `Route` | `is_disrupted`, `risk_score`, `refrigerated_capable` |
 | `Carrier` | `reliability_score`, `cold_chain_capable`, `is_disrupted` |
 | `FleetAsset` | `FleetAssetType` (TRUCK/CONTAINER/VESSEL/AIR_FREIGHT), `utilisation_pct` |
@@ -223,11 +223,11 @@ static string riskLabel(int score);   // 0-24→LOW, 25-49→MEDIUM, 50-74→HIG
 
 ### 3.4 Service Layer
 
-Eight services, each taking `db::Database&` by reference. They are **stateless between calls** — no member caching, no shared mutable state.
+Eight services, each taking `db::Database&` by reference. They are **stateless between calls** â€” no member caching, no shared mutable state.
 
 ---
 
-#### `ShipmentService` — Impact Engine
+#### `ShipmentService` â€” Impact Engine
 
 The most central service. Called on every dashboard and recommendation request.
 
@@ -239,19 +239,19 @@ The most central service. Called on every dashboard and recommendation request.
 3. Query DB for all carriers WHERE is_disrupted=1
 4. For each non-DELIVERED shipment:
      if route_hit OR carrier_hit OR expected_delay_hours > 0:
-         computeImpactScore() → if score > 0: mark affected
+         computeImpactScore() â†’ if score > 0: mark affected
 5. Sort by impact_score DESC
 ```
 
-**Impact score formula (0–100 cap):**
+**Impact score formula (0â€“100 cap):**
 
 | Condition | Score |
 |---|---|
 | Carrier is disrupted | +20 |
 | Current route in disruption's affected_routes | +30 |
-| Delay ≥ 48h | +20 |
-| Delay ≥ 24h | +12 |
-| Delay ≥ 6h | +6 |
+| Delay â‰¥ 48h | +20 |
+| Delay â‰¥ 24h | +12 |
+| Delay â‰¥ 6h | +6 |
 | CRITICAL priority | +15 |
 | HIGH priority | +10 |
 | Cold-chain shipment | +10 |
@@ -259,7 +259,7 @@ The most central service. Called on every dashboard and recommendation request.
 
 ---
 
-#### `RouteService` — Recommendation Algorithm
+#### `RouteService` â€” Recommendation Algorithm
 
 **`recommend(shipment_id, current_route, origin, destination, needs_refrigeration)`**
 
@@ -269,14 +269,14 @@ The most central service. Called on every dashboard and recommendation request.
           [AND refrigerated=1 if cold-chain]
           ORDER BY risk_score ASC, estimated_hours ASC
 3. Filter candidates: origin AND destination must match current route's values
-4. Fallback: if no exact match, accept any route sharing origin OR destination (≤3)
-5. Score candidates: risk_score × 100 + estimated_hours → pick lowest
+4. Fallback: if no exact match, accept any route sharing origin OR destination (â‰¤3)
+5. Score candidates: risk_score Ã— 100 + estimated_hours â†’ pick lowest
 6. Return: recommended route + additional_hours = max(0, best.hours - current.hours)
 ```
 
 ---
 
-#### `CarrierService` — Recommendation Algorithm
+#### `CarrierService` â€” Recommendation Algorithm
 
 Scores available carriers by:
 ```
@@ -289,84 +289,84 @@ Skips disrupted carriers and those below required capacity.
 
 ---
 
-#### `ColdChainService` — Temperature Excursion Classifier
+#### `ColdChainService` â€” Temperature Excursion Classifier
 
 **`getAlert(shipment_id)`** pipeline:
 
 ```
-1. getConfig()    — min/max temp + warning/critical margins + allowed_excursion_minutes
-2. getReadings()  — ordered sensor readings (assumed 30-min intervals)
+1. getConfig()    â€” min/max temp + warning/critical margins + allowed_excursion_minutes
+2. getReadings()  â€” ordered sensor readings (assumed 30-min intervals)
 3. Compute: peak_temp, excursion_duration_minutes, excursion_count
-4. classify() → ExcursionSeverity
+4. classify() â†’ ExcursionSeverity
 5. Build severity_reason string + recommended_action text
 ```
 
 **Severity classification logic:**
 
 ```
-CRITICAL if: magnitude ≥ critical_margin (default 3°C above/below range)
-          OR excursion_minutes ≥ allowed × 3
-          OR ≥ 3 excursion events AND exceeded allowed
+CRITICAL if: magnitude â‰¥ critical_margin (default 3Â°C above/below range)
+          OR excursion_minutes â‰¥ allowed Ã— 3
+          OR â‰¥ 3 excursion events AND exceeded allowed
           OR minutes_to_delivery < 120 AND exceeded allowed
-HIGH     if: magnitude ≥ warning_margin × 2
-          OR excursion_minutes ≥ allowed
-          OR ≥ 2 excursion events
-WARNING  if: magnitude ≥ warning_margin OR any excursion > 0
+HIGH     if: magnitude â‰¥ warning_margin Ã— 2
+          OR excursion_minutes â‰¥ allowed
+          OR â‰¥ 2 excursion events
+WARNING  if: magnitude â‰¥ warning_margin OR any excursion > 0
 NORMAL   if: no excursion
 ```
 
 ---
 
-#### `RecommendationService` — Aggregator
+#### `RecommendationService` â€” Aggregator
 
 **`generateAll()`** runs 4 passes on every call:
 
 | Pass | Source | Output type |
 |---|---|---|
-| 1 | Affected shipments with `impact_score ≥ 25` | `REROUTE_SHIPMENT`, `CHANGE_CARRIER`, `PRIORITISE_SHIPMENT` |
+| 1 | Affected shipments with `impact_score â‰¥ 25` | `REROUTE_SHIPMENT`, `CHANGE_CARRIER`, `PRIORITISE_SHIPMENT` |
 | 2 | `FleetService.getRedeploymentRecommendations()` | `REDEPLOY_FLEET` |
 | 3 | Non-NORMAL cold-chain alerts | `COLD_CHAIN_REVIEW` |
 | 4 | All active disruptions | `MONITOR_DISRUPTION` |
 
-Results sorted CRITICAL → HIGH → MEDIUM → LOW.
+Results sorted CRITICAL â†’ HIGH â†’ MEDIUM â†’ LOW.
 
-**`generateBobSummary()`** builds the natural-language text blob for the AI assistant — plain string concatenation using the same data sources as `generateAll()`.
+**`generateBobSummary()`** builds the natural-language text blob for the AI assistant â€” plain string concatenation using the same data sources as `generateAll()`.
 
 ---
 
-#### `SimulationService` — What-If Engine
+#### `SimulationService` â€” What-If Engine
 
 **`applyScenario(scenario_type, target)`** snapshots KPIs before, mutates the DB, snapshots after, returns a diff.
 
 | Scenario | SQL mutations |
 |---|---|
-| `weather_disruption` | Insert disruption; mark R05+R13 `is_disrupted=1`; `UPDATE shipments SET status='DISRUPTED', delay+=18` WHERE route IN (R05,R13) |
-| `road_closure` | Insert disruption; mark R06; `delay+=6` |
-| `port_strike` | Insert disruption; mark R09+R14; `status='DISRUPTED', delay+=48` |
-| `carrier_unavailable` | `UPDATE carriers SET is_disrupted=1`; affected shipments → `AT_RISK` |
+| `weather_disruption` | Insert disruption; mark R05+R13 `is_disrupted=1`; `UPDATE shipments SET status='DISRUPTED', delay+=24; C02 carrier shipments AT_RISK; Ahmedabad fleet MAINTENANCE |
+| `road_closure` | Insert disruption; mark R06; `status=DISRUPTED, delay+=12`; R10 delay+=4; Delhi fleet utilisation +20% |
+| `port_strike` | Insert disruption; mark R09+R14; `status=DISRUPTED, delay+=72; R15 AT_RISK; Chennai fleet IDLE` |
+| `carrier_unavailable` | `UPDATE carriers SET is_disrupted=1`; affected shipments â†’ `AT_RISK` |
 | `fleet_unavailable` | `UPDATE fleet_assets SET status='MAINTENANCE', utilisation_pct=0` |
-| `demand_increase` | `INSERT OR IGNORE INTO shipments` — 5 new rows (SH2001–SH2005) |
+| `demand_increase` | `INSERT OR IGNORE INTO shipments` â€” 5 new rows (SH2001â€“SH2005) |
 | `temperature_excursion` | `DELETE` existing readings; `INSERT` out-of-range sequence for target shipment |
-| `reset` | `db_.resetToSeedState()` — full re-seed |
+| `reset` | `db_.resetToSeedState()` â€” full re-seed |
 
 ---
 
 #### `DisruptionService`
 
-- `getActiveDisruptions()` — `WHERE status != 'RESOLVED'`
-- `getAffectedShipmentIds(disruption)` — joins shipments on `current_route IN (affected_routes)`
-- `addDisruption(d)` — inserts new row, returns new id
-- `setRouteDisrupted(route_id, bool, reason)` — `UPDATE routes SET is_disrupted=…`
-- `setCarrierDisrupted(carrier_id, bool, reason)` — `UPDATE carriers SET is_disrupted=…`
+- `getActiveDisruptions()` â€” `WHERE status != 'RESOLVED'`
+- `getAffectedShipmentIds(disruption)` â€” joins shipments on `current_route IN (affected_routes)`
+- `addDisruption(d)` â€” inserts new row, returns new id
+- `setRouteDisrupted(route_id, bool, reason)` â€” `UPDATE routes SET is_disrupted=â€¦`
+- `setCarrierDisrupted(carrier_id, bool, reason)` â€” `UPDATE carriers SET is_disrupted=â€¦`
 
 ---
 
 #### `FleetService`
 
-- `getAllAssets()` / `getIdleAssets()` — `WHERE status='IDLE'`
-- `getUtilisation()` — aggregates total/active/idle/maintenance counts + avg `utilisation_pct`
-- `getRedeploymentRecommendations()` — finds idle assets in cities that have ≥2 disrupted/delayed shipments
-- `updateStatus(asset_id, status)` — direct UPDATE
+- `getAllAssets()` / `getIdleAssets()` â€” `WHERE status='IDLE'`
+- `getUtilisation()` â€” aggregates total/active/idle/maintenance counts + avg `utilisation_pct`
+- `getRedeploymentRecommendations()` â€” finds idle assets in cities that have â‰¥2 disrupted/delayed shipments
+- `updateStatus(asset_id, status)` â€” direct UPDATE
 
 ---
 
@@ -374,23 +374,23 @@ Results sorted CRITICAL → HIGH → MEDIUM → LOW.
 
 **File:** [`api_handler.cpp`](../src/backend/api/api_handler.cpp)
 
-Pure translation layer — no business logic. Each handler:
+Pure translation layer â€” no business logic. Each handler:
 1. Parses JSON body via `nlohmann/json` (POST only)
 2. Calls one or more services
 3. Serialises using private static `*ToJson()` helpers
 4. Returns `std::string`
 
-**Bob AI handler** (`handleBobQuery`) — keyword-based NLP, no ML:
+**Bob AI handler** (`handleBobQuery`) â€” keyword-based NLP, no ML:
 ```
-toLower(question) → string::find() on keywords:
-  "summary" / "what should we do"   → rec_svc.generateBobSummary()
-  "affected" + "shipment"            → list affected shipments
-  "highest risk" / "worst"           → top affected shipment detail
-  "route" + "alternative/recommend"  → route rec for top shipment
-  "carrier" + "change/switch"        → carrier rec for top shipment
-  "idle" / "redeploy"                → fleet idle list
-  "cold" / "temperature"             → cold-chain alert summary
-  (fallback)                         → generateBobSummary()
+toLower(question) â†’ string::find() on keywords:
+  "summary" / "what should we do"   â†’ rec_svc.generateBobSummary()
+  "affected" + "shipment"            â†’ list affected shipments
+  "highest risk" / "worst"           â†’ top affected shipment detail
+  "route" + "alternative/recommend"  â†’ route rec for top shipment
+  "carrier" + "change/switch"        â†’ carrier rec for top shipment
+  "idle" / "redeploy"                â†’ fleet idle list
+  "cold" / "temperature"             â†’ cold-chain alert summary
+  (fallback)                         â†’ generateBobSummary()
 ```
 
 ---
@@ -402,20 +402,20 @@ toLower(question) → string::find() on keywords:
 [`index.html`](../src/frontend/index.html) is a single-page app with 8 `<section>` elements. Only one is `display:block` at a time.
 
 ```
-<header>           — fixed top bar (logo, status, buttons)
-<nav>              — fixed below header (tab buttons + Ask Bob)
+<header>           â€” fixed top bar (logo, status, buttons)
+<nav>              â€” fixed below header (tab buttons + Ask Bob)
 <main>
-  #section-overview        — KPI cards, active disruptions, top shipments, priority recs
-  #section-disruptions     — disruption cards grid
-  #section-shipments       — filterable table + slide-in detail panel
-  #section-fleet           — fleet stats + asset table + redeployment list + doughnut chart
-  #section-coldchain        — cold-card grid + temperature line chart
-  #section-recommendations  — route rec panel, carrier rec panel, all recs list
-  #section-simulation      — scenario cards
-  #section-bob             — chat interface
+  #section-overview        â€” KPI cards, active disruptions, top shipments, priority recs
+  #section-disruptions     â€” disruption cards grid
+  #section-shipments       â€” filterable table + slide-in detail panel
+  #section-fleet           â€” fleet stats + asset table + redeployment list + doughnut chart
+  #section-coldchain        â€” cold-card grid + temperature line chart
+  #section-recommendations  â€” route rec panel, carrier rec panel, all recs list
+  #section-simulation      â€” scenario cards
+  #section-bob             â€” chat interface
 ```
 
-The shipment detail panel (`#shipmentDetail`) is a fixed right-side drawer with a **sticky header** — `.detail-header` is `flex-shrink:0` so the close button never scrolls away, and `#detailContent` scrolls independently.
+The shipment detail panel (`#shipmentDetail`) is a fixed right-side drawer with a **sticky header** â€” `.detail-header` is `flex-shrink:0` so the close button never scrolls away, and `#detailContent` scrolls independently.
 
 ---
 
@@ -439,13 +439,13 @@ CSS custom properties (design tokens):
 ```
 
 Key layout rules:
-- Header: `position:fixed; background:var(--navy)` — dark navy
-- Nav: `position:fixed; top:var(--header-h); background:white` — white bar
+- Header: `position:fixed; background:var(--navy)` â€” dark navy
+- Nav: `position:fixed; top:var(--header-h); background:white` â€” white bar
 - Main: `margin-top: calc(var(--header-h) + var(--nav-h)); padding:28px 24px`
 - KPI cards: `flex-direction:column` with `::before` pseudo-element as top colour strip
-- Panel titles: `border-left:3px solid var(--accent)` — blue left accent
-- Badges: `border-radius:5px` — slightly square
-- Detail panel: `display:flex; flex-direction:column` — header pinned, content scrolls
+- Panel titles: `border-left:3px solid var(--accent)` â€” blue left accent
+- Badges: `border-radius:5px` â€” slightly square
+- Detail panel: `display:flex; flex-direction:column` â€” header pinned, content scrolls
 
 ---
 
@@ -458,7 +458,7 @@ Key layout rules:
 ```js
 let state = {
   dashboard:      {},      // /api/dashboard response
-  allShipments:   [],      // /api/shipments — all shipments; patched locally on approval
+  allShipments:   [],      // /api/shipments â€” all shipments; patched locally on approval
   disruptions:    [],
   fleet:          [],
   coldAlerts:     [],
@@ -470,7 +470,7 @@ let state = {
       value:     "R15",          // new route/carrier value
       label:     "Route name",
       at:        "14:32:07",     // toLocaleTimeString()
-      note:      "Route changed to R15 (Mumbai–Chennai Rail Express)"
+      note:      "Route changed to R15 (Mumbaiâ€“Chennai Rail Express)"
     }
   },
   tempChart:  null,        // Chart.js instance
@@ -483,15 +483,15 @@ let state = {
 
 | Function | Purpose |
 |---|---|
-| `init()` | Health check → `refreshAll()` → hide loading overlay; shows offline screen on failure |
-| `refreshAll()` | 6 parallel `fetch()` calls → populates state → calls all 6 render functions |
+| `init()` | Health check â†’ `refreshAll()` â†’ hide loading overlay; shows offline screen on failure |
+| `refreshAll()` | 6 parallel `fetch()` calls â†’ populates state â†’ calls all 6 render functions |
 | `showSection(name, btn)` | Toggles `.active` class on sections and nav buttons |
 | `renderOverview()` | Writes KPI values, disruption list, top shipment table, priority recs |
 | `renderShipments()` | Applies `state.shipmentFilter`, renders table rows with decision badges |
 | `showShipmentDetail(id)` | Opens slide-in panel, fetches route rec, shows decision history |
 | `renderFleet()` | Fleet stats bar, asset table with utilisation bars, redeployment list, doughnut chart |
 | `renderColdChain()` | Cold cards, selects first shipment for temp chart |
-| `renderRecommendations()` | Populates both dropdowns (all shipments, affected first with ⚠) |
+| `renderRecommendations()` | Populates both dropdowns (all shipments, affected first with âš ) |
 | `loadRouteRecommendation()` | Fetches rec, shows Approve/Reject buttons or locked banner |
 | `loadCarrierRecommendation()` | Same pattern as route rec |
 | `approveRec(type, id, value, label)` | Records decision, patches `state.allShipments`, re-renders |
@@ -499,26 +499,26 @@ let state = {
 | `runSimulation(scenario, target)` | POST to `/api/simulation`, shows before/after diff, calls `refreshAll()` |
 | `sendBobMessage()` | POST to `/api/bob/query`, renders response in chat |
 | `escapeHtml(str)` | For DOM text injection |
-| `escapeAttr(str)` | For inline `onclick="..."` attribute values — different from `escapeHtml` |
+| `escapeAttr(str)` | For inline `onclick="..."` attribute values â€” different from `escapeHtml` |
 
 #### Approve/Reject decision flow
 
 ```
-User clicks "✓ Approve Route Change"
-  ↓
-approveRec('route', 'SH1001', 'R15', 'Mumbai–Chennai Rail Express')
-  ↓
+User clicks "âœ“ Approve Route Change"
+  â†“
+approveRec('route', 'SH1001', 'R15', 'Mumbaiâ€“Chennai Rail Express')
+  â†“
 state.decisions['route:SH1001'] = { status:'approved', value:'R15', at:'14:32:07', ... }
-  ↓
+  â†“
 Patch state.allShipments[SH1001]:
   .current_route = 'R15'
   .status        = 'ON_TIME'
   .expected_delay_hours = 0
   .risk_level    = 'LOW'
   .impact_score  = 0
-  ↓
-renderShipments()   ← table row shows green ✓ badge next to route
-loadRouteRecommendation()  ← panel shows locked "✓ Approved" banner
+  â†“
+renderShipments()   â† table row shows green âœ“ badge next to route
+loadRouteRecommendation()  â† panel shows locked "âœ“ Approved" banner
 ```
 
 > **Important:** Decisions and patched shipment state exist only in `state` for the browser session. The backend never receives these changes. Page refresh resets everything.
@@ -535,19 +535,19 @@ loadRouteRecommendation()  ← panel shows locked "✓ Approved" banner
 | GET | `/api/shipments/affected` | `handleGetAffectedShipments` | Affected shipments only |
 | GET | `/api/disruptions` | `handleGetDisruptions` | All disruptions |
 | GET | `/api/routes` | `handleGetRoutes` | All routes |
-| POST | `/api/routes/recommend` | `handlePostRouteRecommend` | `{shipment_id}` → route recommendation |
+| POST | `/api/routes/recommend` | `handlePostRouteRecommend` | `{shipment_id}` â†’ route recommendation |
 | GET | `/api/carriers` | `handleGetCarriers` | All carriers |
-| POST | `/api/carriers/recommend` | `handlePostCarrierRecommend` | `{shipment_id, required_capacity_kg}` → carrier recommendation |
+| POST | `/api/carriers/recommend` | `handlePostCarrierRecommend` | `{shipment_id, required_capacity_kg}` â†’ carrier recommendation |
 | GET | `/api/fleet` | `handleGetFleet` | All fleet assets |
 | GET | `/api/fleet/idle` | `handleGetFleetIdle` | Idle assets only |
 | GET | `/api/fleet/utilisation` | `handleGetFleetUtilisation` | Aggregated utilisation stats |
-| POST | `/api/fleet/redeploy` | `handlePostFleetRedeploy` | `{asset_id, target_location}` → initiates redeployment |
+| POST | `/api/fleet/redeploy` | `handlePostFleetRedeploy` | `{asset_id, target_location}` â†’ initiates redeployment |
 | GET | `/api/cold-chain/alerts` | `handleGetColdChainAlerts` | All cold-chain alerts sorted by severity |
 | GET | `/api/cold-chain/{shipment_id}` | `handleGetColdChainShipment` | Single shipment alert |
 | GET | `/api/cold-chain/{shipment_id}/temperature` | `handleGetColdChainTemperature` | Sensor readings + config |
-| POST | `/api/simulation` | `handlePostSimulation` | `{scenario, target?}` → apply scenario, return before/after diff |
+| POST | `/api/simulation` | `handlePostSimulation` | `{scenario, target?}` â†’ apply scenario, return before/after diff |
 | GET | `/api/recommendations` | `handleGetRecommendations` | All active recommendations |
-| POST | `/api/bob/query` | `handleBobQuery` | `{question}` → natural language answer |
+| POST | `/api/bob/query` | `handleBobQuery` | `{question}` â†’ natural language answer |
 | GET | `/` | serveFile | `index.html` |
 | GET | `/css/dashboard.css` | serveFile | Stylesheet |
 | GET | `/js/dashboard.js` | serveFile | Application script |
@@ -560,25 +560,25 @@ loadRouteRecommendation()  ← panel shows locked "✓ Approved" banner
 
 ```
 main()
-  ├── Parse CLI: --port (8080), --db (:memory:), --frontend (./frontend)
-  ├── WSAStartup()  [Windows only]
-  ├── db::initDB(":memory:")
-  │     └── Database::Database()
-  │           ├── sqlite3_open(":memory:")
-  │           ├── PRAGMA journal_mode=WAL
-  │           ├── PRAGMA foreign_keys=ON
-  │           ├── createSchema()   — CREATE TABLE IF NOT EXISTS × 7
-  │           └── seedData()
-  │                 ├── seedDisruptions()   — 5 disruptions
-  │                 ├── seedRoutes()        — 15+ routes
-  │                 ├── seedCarriers()      — 7 carriers
-  │                 ├── seedShipments()     — 24 base shipments
-  │                 ├── seedFleetAssets()   — 30 assets
-  │                 ├── seedColdChainConfig()— 20 configs
-  │                 └── seedSensorReadings()— readings per cold-chain shipment
-  ├── Instantiate 8 service objects (each receives db& ref)
-  ├── Register ~24 routes via addRoute()
-  └── socket() → bind() → listen() → accept() loop
+  â”œâ”€â”€ Parse CLI: --port (8080), --db (:memory:), --frontend (./frontend)
+  â”œâ”€â”€ WSAStartup()  [Windows only]
+  â”œâ”€â”€ db::initDB(":memory:")
+  â”‚     â””â”€â”€ Database::Database()
+  â”‚           â”œâ”€â”€ sqlite3_open(":memory:")
+  â”‚           â”œâ”€â”€ PRAGMA journal_mode=WAL
+  â”‚           â”œâ”€â”€ PRAGMA foreign_keys=ON
+  â”‚           â”œâ”€â”€ createSchema()   â€” CREATE TABLE IF NOT EXISTS Ã— 7
+  â”‚           â””â”€â”€ seedData()
+  â”‚                 â”œâ”€â”€ seedDisruptions()   â€” 5 disruptions
+  â”‚                 â”œâ”€â”€ seedRoutes()        â€” 15+ routes
+  â”‚                 â”œâ”€â”€ seedCarriers()      â€” 7 carriers
+  â”‚                 â”œâ”€â”€ seedShipments()     â€” 24 base shipments
+  â”‚                 â”œâ”€â”€ seedFleetAssets()   â€” 30 assets
+  â”‚                 â”œâ”€â”€ seedColdChainConfig()â€” 20 configs
+  â”‚                 â””â”€â”€ seedSensorReadings()â€” readings per cold-chain shipment
+  â”œâ”€â”€ Instantiate 8 service objects (each receives db& ref)
+  â”œâ”€â”€ Register ~24 routes via addRoute()
+  â””â”€â”€ socket() â†’ bind() â†’ listen() â†’ accept() loop
 ```
 
 ---
@@ -587,15 +587,15 @@ main()
 
 ```
 Browser: GET /api/dashboard
-  ↓
+  â†“
 handleDashboard(db, dis, ship, fleet, cold, rec)
-  ├── dis.getActiveDisruptions()      → SELECT WHERE status != 'RESOLVED'
-  ├── ship.getAffectedShipments()     → computeImpactScore() per shipment
-  ├── fleet.getUtilisation()          → aggregate fleet stats
-  ├── fleet.getIdleAssets()           → WHERE status='IDLE'
-  ├── cold.getAllAlerts()             → classify() per cold-chain shipment
-  └── rec.generateAll()               → 4-pass recommendation engine
-  ↓
+  â”œâ”€â”€ dis.getActiveDisruptions()      â†’ SELECT WHERE status != 'RESOLVED'
+  â”œâ”€â”€ ship.getAffectedShipments()     â†’ computeImpactScore() per shipment
+  â”œâ”€â”€ fleet.getUtilisation()          â†’ aggregate fleet stats
+  â”œâ”€â”€ fleet.getIdleAssets()           â†’ WHERE status='IDLE'
+  â”œâ”€â”€ cold.getAllAlerts()             â†’ classify() per cold-chain shipment
+  â””â”€â”€ rec.generateAll()               â†’ 4-pass recommendation engine
+  â†“
 Serialise to JSON:
   kpi.{active_disruptions, affected_shipments, fleet_utilisation_pct, ...}
   disruptions[]
@@ -648,11 +648,11 @@ computeImpactScore(shipment, active_disruptions)
 
 ```
 POST /api/routes/recommend  { "shipment_id": "SH1001" }
-  ↓
-ship.getById("SH1001")   → current_route, origin, destination, cold_chain
-  ↓
+  â†“
+ship.getById("SH1001")   â†’ current_route, origin, destination, cold_chain
+  â†“
 route.recommend("SH1001", "R01", "Mumbai", "Delhi", false)
-  ↓
+  â†“
   1. Fetch current route details (estimated_hours, risk_score)
   2. SQL: SELECT * FROM routes
          WHERE is_disrupted=0 AND id != 'R01'
@@ -660,10 +660,10 @@ route.recommend("SH1001", "R01", "Mumbai", "Delhi", false)
          ORDER BY risk_score ASC, estimated_hours ASC
   3. Filter: keep only routes where
          origin  == "Mumbai" AND destination == "Delhi"
-  4. Fallback: if empty, accept routes sharing origin OR destination (≤3 candidates)
-  5. Score each: risk_score × 100 + estimated_hours
+  4. Fallback: if empty, accept routes sharing origin OR destination (â‰¤3 candidates)
+  5. Score each: risk_score Ã— 100 + estimated_hours
   6. Return lowest-scored candidate
-  ↓
+  â†“
 Response:
   { found, current_route, recommended_route, recommended_route_name,
     additional_hours, cost_usd, risk_score, reason }
@@ -675,26 +675,26 @@ Response:
 
 ```
 GET /api/cold-chain/alerts
-  ↓
+  â†“
 cold.getAllAlerts()
-  ↓ for each shipment in cold_chain_config:
-  getConfig(id)    → min_temp, max_temp, warning_margin(1°C), critical_margin(3°C),
+  â†“ for each shipment in cold_chain_config:
+  getConfig(id)    â†’ min_temp, max_temp, warning_margin(1Â°C), critical_margin(3Â°C),
                       allowed_excursion_minutes(30)
-  getReadings(id)  → ordered sensor readings (30-min intervals assumed)
-  ↓
+  getReadings(id)  â†’ ordered sensor readings (30-min intervals assumed)
+  â†“
   Compute:
     peak_temp           = max temperature in all readings
     excursion_minutes   = total minutes outside [min_temp, max_temp]
     excursion_count     = number of separate excursion events
     excursion_magnitude = |peak_temp - boundary|
-  ↓
+  â†“
   classify():
-    CRITICAL → magnitude ≥ 3°C  OR  minutes ≥ allowed×3
-               OR (≥3 events AND minutes > allowed)
+    CRITICAL â†’ magnitude â‰¥ 3Â°C  OR  minutes â‰¥ allowedÃ—3
+               OR (â‰¥3 events AND minutes > allowed)
                OR (delivery < 2h AND minutes > allowed)
-    HIGH     → magnitude ≥ 2°C  OR  minutes ≥ allowed  OR  ≥2 events
-    WARNING  → magnitude ≥ 1°C  OR  any excursion
-    NORMAL   → no excursion
+    HIGH     â†’ magnitude â‰¥ 2Â°C  OR  minutes â‰¥ allowed  OR  â‰¥2 events
+    WARNING  â†’ magnitude â‰¥ 1Â°C  OR  any excursion
+    NORMAL   â†’ no excursion
 ```
 
 ---
@@ -703,26 +703,26 @@ cold.getAllAlerts()
 
 ```
 POST /api/simulation  { "scenario": "weather_disruption" }
-  ↓
+  â†“
 sim.applyScenario("weather_disruption", "")
-  ↓
+  â†“
   Snapshot BEFORE:
     affected_shipments_before = ship.getAffectedShipments().size()
     idle_assets_before        = fleet.getIdleAssets().size()
     cold_chain_alerts_before  = count non-NORMAL cold alerts
-  ↓
+  â†“
   Apply mutations (direct SQL):
     INSERT INTO disruptions ...
     UPDATE routes SET is_disrupted=1 WHERE id IN ('R05','R13')
     UPDATE shipments SET status='DISRUPTED',
            expected_delay_hours = expected_delay_hours + 18
            WHERE current_route IN ('R05','R13') AND status != 'DELIVERED'
-  ↓
+  â†“
   Snapshot AFTER (same queries)
-  ↓
+  â†“
   Return SimulationResult { success, message, before{}, after{} }
-  ↓
-Frontend: refreshAll() — reloads all data to reflect mutations
+  â†“
+Frontend: refreshAll() â€” reloads all data to reflect mutations
 ```
 
 ---
@@ -733,33 +733,33 @@ This flow is **entirely frontend-only**. No backend endpoint exists for decision
 
 ```
 User: select shipment SH1001 in Recommendations tab
-  ↓
+  â†“
 loadRouteRecommendation()
-  → POST /api/routes/recommend { shipment_id: "SH1001" }
-  → check state.decisions["route:SH1001"]
-  → if no decision: render Approve + Reject buttons
-  → if already decided: render locked decision banner
-  ↓
-User clicks "✓ Approve Route Change"
-  ↓
-approveRec('route', 'SH1001', 'R15', 'Mumbai–Chennai Rail Express')
-  ├── state.decisions["route:SH1001"] = { status:'approved', value:'R15', at:'...' }
-  ├── Find SH1001 in state.allShipments, patch:
-  │     current_route = 'R15'
-  │     status = 'ON_TIME'
-  │     expected_delay_hours = 0
-  │     risk_level = 'LOW'
-  │     impact_score = 0
-  ├── renderShipments()  → table row shows green ✓ badge
-  └── loadRouteRecommendation()  → panel now shows locked banner
-  ↓
-User opens Shipments tab → clicks SH1001
-  ↓
+  â†’ POST /api/routes/recommend { shipment_id: "SH1001" }
+  â†’ check state.decisions["route:SH1001"]
+  â†’ if no decision: render Approve + Reject buttons
+  â†’ if already decided: render locked decision banner
+  â†“
+User clicks "âœ“ Approve Route Change"
+  â†“
+approveRec('route', 'SH1001', 'R15', 'Mumbaiâ€“Chennai Rail Express')
+  â”œâ”€â”€ state.decisions["route:SH1001"] = { status:'approved', value:'R15', at:'...' }
+  â”œâ”€â”€ Find SH1001 in state.allShipments, patch:
+  â”‚     current_route = 'R15'
+  â”‚     status = 'ON_TIME'
+  â”‚     expected_delay_hours = 0
+  â”‚     risk_level = 'LOW'
+  â”‚     impact_score = 0
+  â”œâ”€â”€ renderShipments()  â†’ table row shows green âœ“ badge
+  â””â”€â”€ loadRouteRecommendation()  â†’ panel now shows locked banner
+  â†“
+User opens Shipments tab â†’ clicks SH1001
+  â†“
 showShipmentDetail('SH1001')
-  → reads state.decisions['route:SH1001']
-  → renders "📋 Decision History" section
-  → shows "Route Recommendation — ✓ Approved" card
-  → route rec section shows Approve button (since decision exists → locked banner)
+  â†’ reads state.decisions['route:SH1001']
+  â†’ renders "ðŸ“‹ Decision History" section
+  â†’ shows "Route Recommendation â€” âœ“ Approved" card
+  â†’ route rec section shows Approve button (since decision exists â†’ locked banner)
 ```
 
 ---
@@ -792,7 +792,7 @@ CREATE TABLE routes (
     capacity_kg     INTEGER,
     is_disrupted    INTEGER,           -- 0 or 1
     disruption_reason TEXT,
-    risk_score      INTEGER,           -- 0–100
+    risk_score      INTEGER,           -- 0â€“100
     refrigerated    INTEGER            -- 0 or 1
 );
 
@@ -802,7 +802,7 @@ CREATE TABLE carriers (
     type                TEXT,
     available_capacity  INTEGER,
     total_capacity      INTEGER,
-    reliability         REAL,              -- 0.0–1.0
+    reliability         REAL,              -- 0.0â€“1.0
     cost_per_km         REAL,
     avg_delay_hours     INTEGER,
     cold_chain          INTEGER,           -- 0 or 1
@@ -854,8 +854,8 @@ CREATE TABLE cold_chain_config (
     shipment_id               TEXT PRIMARY KEY,
     min_temp                  REAL,
     max_temp                  REAL,
-    warning_margin            REAL,   -- default 1.0°C
-    critical_margin           REAL,   -- default 3.0°C
+    warning_margin            REAL,   -- default 1.0Â°C
+    critical_margin           REAL,   -- default 3.0Â°C
     allowed_excursion_minutes INTEGER -- default 30
 );
 ```
@@ -870,7 +870,7 @@ No external test framework. `test_main.cpp` defines:
 
 ```cpp
 void check(bool condition, const string& test_name);
-// Prints "  ✓  test_name" or "  ✗  test_name  <<< FAIL"
+// Prints "  âœ“  test_name" or "  âœ—  test_name  <<< FAIL"
 // Increments g_passed / g_failed
 ```
 
@@ -902,23 +902,23 @@ build\bin\run_tests.exe
 ### Build (Windows)
 
 ```bat
-cd src        ← must be in src/ (script self-cd's but is safest from here)
+cd src        â† must be in src/ (script self-cd's but is safest from here)
 build.bat
 ```
 
 Build order:
-1. `gcc -c third_party/sqlite/sqlite3.c` — compiled with **gcc**, not g++
-2. `g++ -c backend/**/*.cpp` — all backend files with `-std=c++17`
-3. Link → `build/bin/supply_chain_backend.exe` (links `-lws2_32 -lmswsock`)
-4. Compile + link tests → `build/bin/run_tests.exe`
-5. `xcopy /E /Y frontend build\bin\frontend` — copies frontend source to serve directory
+1. `gcc -c third_party/sqlite/sqlite3.c` â€” compiled with **gcc**, not g++
+2. `g++ -c backend/**/*.cpp` â€” all backend files with `-std=c++17`
+3. Link â†’ `build/bin/supply_chain_backend.exe` (links `-lws2_32 -lmswsock`)
+4. Compile + link tests â†’ `build/bin/run_tests.exe`
+5. `xcopy /E /Y frontend build\bin\frontend` â€” copies frontend source to serve directory
 
 > **Gotcha:** `build.bat` prints `=== Build Complete ===` even when the linker fails (e.g. the `.exe` is running and locked). Check stderr for `Permission denied`.
 
 ### Run server
 
 ```bat
-REM From anywhere — use the root launcher:
+REM From anywhere â€” use the root launcher:
 start_server.bat
 
 REM Or manually (must cd first):
@@ -935,3 +935,4 @@ Copy-Item "src\frontend\js\dashboard.js"   "src\build\bin\frontend\js\dashboard.
 ```
 
 > The backend serves from `src/build/bin/frontend/`, **not** from `src/frontend/` directly.
+

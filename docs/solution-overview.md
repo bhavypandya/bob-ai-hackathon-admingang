@@ -1,12 +1,12 @@
-# Solution Overview
+﻿# Solution Overview
 
-## SupplyGuard — Supply Chain Disruption Assistant & Fleet Optimizer
+## SupplyGuard â€” Supply Chain Disruption Assistant & Fleet Optimizer
 
 ### Core Idea
 
 SupplyGuard monitors the supply chain state and, when disruptions occur, automatically
 analyses their downstream impact, generates recommendations, and gives operations teams
-a single place to understand the situation and take action — with Bob AI as the intelligent
+a single place to understand the situation and take action â€” with Bob AI as the intelligent
 interface.
 
 ---
@@ -15,53 +15,53 @@ interface.
 
 ```
 ACTIVE DISRUPTION (weather / port strike / road closure / carrier)
-        ↓
+        â†“
 IDENTIFY AFFECTED SHIPMENTS
-  → Query all shipments on disrupted routes and with disrupted carriers
-        ↓
+  â†’ Query all shipments on disrupted routes and with disrupted carriers
+        â†“
 ANALYSE IMPACT / RISK (0-100 score per shipment)
-  → Route affected (+30), carrier disrupted (+20), delay severity (+6/+12/+20),
+  â†’ Route affected (+30), carrier disrupted (+20), delay severity (+6/+12/+20),
     priority modifier (+10/+15), cold-chain sensitivity (+10)
-        ↓
+        â†“
 RECOMMEND ALTERNATIVE ROUTE
-  → Find undisrupted routes for same corridor
-  → Rank by risk score + estimated time + cost
-  → Return best with explanation
-        ↓
+  â†’ Find undisrupted routes for same corridor
+  â†’ Rank by risk score + estimated time + cost
+  â†’ Return best with explanation
+        â†“
 RECOMMEND ALTERNATIVE CARRIER
-  → Filter by: not disrupted, sufficient capacity, cold-chain capability
-  → Rank by reliability × 50 – delay × 5 – cost × 0.5
-  → Return best with explanation
-        ↓
+  â†’ Filter by: not disrupted, sufficient capacity, cold-chain capability
+  â†’ Rank by reliability Ã— 50 â€“ delay Ã— 5 â€“ cost Ã— 0.5
+  â†’ Return best with explanation
+        â†“
 IDENTIFY IDLE FLEET
-  → Query assets with status IDLE or AVAILABLE
-  → Match to demand hotspots (locations with highest disrupted shipment count)
-  → Filter by compatibility (refrigeration, type, capacity)
-        ↓
+  â†’ Query assets with status IDLE or AVAILABLE
+  â†’ Match to demand hotspots (locations with highest disrupted shipment count)
+  â†’ Filter by compatibility (refrigeration, type, capacity)
+        â†“
 RECOMMEND FLEET REDEPLOYMENT
-  → One recommendation per idle asset to nearest demand hotspot
-        ↓
+  â†’ One recommendation per idle asset to nearest demand hotspot
+        â†“
 MONITOR COLD-CHAIN DATA (IoT sensor readings)
-  → Per-shipment configurable temperature range
-  → Read all sensor readings sorted by timestamp
-        ↓
+  â†’ Per-shipment configurable temperature range
+  â†’ Read all sensor readings sorted by timestamp
+        â†“
 DETECT TEMPERATURE EXCURSIONS
-  → Mark readings outside [min_temp, max_temp] as excursion
-  → Calculate excursion duration in minutes
-  → Count separate excursion events
-        ↓
+  â†’ Mark readings outside [min_temp, max_temp] as excursion
+  â†’ Calculate excursion duration in minutes
+  â†’ Count separate excursion events
+        â†“
 CLASSIFY SEVERITY (NORMAL / WARNING / HIGH / CRITICAL)
-  → Based on: excursion magnitude vs. warning/critical margins,
+  â†’ Based on: excursion magnitude vs. warning/critical margins,
     excursion duration vs. allowed limit, excursion count, time to delivery
-        ↓
+        â†“
 GENERATE ACTIONABLE RECOMMENDATIONS
-  → REROUTE_SHIPMENT, CHANGE_CARRIER, REDEPLOY_FLEET,
+  â†’ REROUTE_SHIPMENT, CHANGE_CARRIER, REDEPLOY_FLEET,
     PRIORITISE_SHIPMENT, COLD_CHAIN_REVIEW, MONITOR_DISRUPTION
-  → Sorted by priority (CRITICAL > HIGH > MEDIUM > LOW)
-        ↓
+  â†’ Sorted by priority (CRITICAL > HIGH > MEDIUM > LOW)
+        â†“
 BOB EXPLAINS THE SITUATION AND RECOMMENDED ACTION
-  → Natural language Q&A backed by live backend data
-  → Full operational summary with top 5 priority actions
+  â†’ Natural language Q&A backed by live backend data
+  â†’ Full operational summary with top 5 priority actions
 ```
 
 ---
@@ -86,12 +86,12 @@ on those routes.
 
 ### 4. Shipment Impact Analyser
 
-Computes an explainable 0–100 risk score for each affected shipment. The score has additive
+Computes an explainable 0â€“100 risk score for each affected shipment. The score has additive
 components, each traceable to a specific cause.
 
 ### 5. Route Recommendation Engine
 
-Finds undisrupted routes for the same corridor, ranks by (risk_score × 100 + estimated_hours),
+Finds undisrupted routes for the same corridor, ranks by (risk_score Ã— 100 + estimated_hours),
 and returns the best available option with a natural-language explanation.
 
 ### 6. Carrier Recommendation Engine
@@ -126,18 +126,18 @@ services based on keyword matching, and returns structured operational answers u
 
 ### 12. Frontend Dashboard
 
-A single-page application with Chart.js visualisations, tabbed navigation covering all major
-sections: overview, disruptions, shipments, fleet, cold chain, recommendations, simulation,
-and Bob AI.
+A single-page application with Chart.js visualisations, tabbed navigation with tabbed navigation and a polished UI covering: Overview, Disruptions (fullscreen modal), Shipments (74 ships, sortable, approve/reject), Fleet (sortable), Cold Chain, Simulation, and Bob AI (redesigned two-column layout).
 
 ---
 
 ## Demo Scenario
 
-1. **Normal operation** — Dashboard shows 24 shipments, 5 disruptions, 8 idle assets
-2. **Disruption active** — Cyclone Biparjoy affects R01, R02, R08; 12 shipments impacted
-3. **Risk scored** — SH1016 (vaccines, CRITICAL priority, cold-chain) scores CRITICAL
-4. **Route recommended** — Switch SH1001 from R01 to R11 (Mumbai–Delhi Rail Freight)
-5. **Fleet idle** — T204, T211, T215 idle at Mumbai/Delhi, recommended for redeployment
-6. **Temperature excursion** — SH1016 shows peak 15.1°C vs. configured max 8°C → CRITICAL severity
-7. **Bob summary** — Ask "What should we do right now?" → receives complete operational action plan
+1. **Normal operation** â€” Dashboard Shows 74 shipments
+2. **Disruption active** â€” Cyclone Biparjoy affects R01, R02, R08; click card to see all affected shipments in fullscreen modal
+3. **Risk scored** â€” SH1016 (vaccines, CRITICAL priority, cold-chain) scores CRITICAL
+4. **Route recommended** â€” Switch SH1001 from R01 to R11 (Mumbaiâ€“Delhi Rail Freight)
+5. **Fleet idle** â€” T204, T211, T215 idle at Mumbai/Delhi, recommended for redeployment
+6. **Temperature excursion** â€” SH1016 shows peak 15.1Â°C vs. configured max 8Â°C â†’ CRITICAL severity
+7. **Simulation** — Run "Port Strike" to see R09/R14 shipments gain +72h delay, Chennai fleet idled
+8. **Bob summary** â€” Ask "What should we do right now?" â†’ receives complete operational action plan
+
