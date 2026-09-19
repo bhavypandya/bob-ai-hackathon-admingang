@@ -164,6 +164,8 @@ static HttpResponse dispatch(const HttpRequest& req) {
             HttpRequest req2 = req;
             req2.headers["_param_shipment_id"] = params.count("shipment_id") ? params.at("shipment_id") : "";
             req2.headers["_param_id"] = params.count("id") ? params.at("id") : "";
+            // Pass through all params
+            for (const auto& p : params) req2.headers["_param_" + p.first] = p.second;
             return route.handler(req2);
         }
     }
@@ -381,7 +383,93 @@ int main(int argc, char* argv[]) {
     addRoute("POST", "/api/bob/query", [&](const HttpRequest& req) {
         return HttpResponse{200, "application/json",
             api::handleBobQuery(req.body, dis_svc, ship_svc, route_svc,
-                                carrier_svc, fleet_svc, cold_svc, rec_svc)};
+                                carrier_svc, fleet_svc, cold_svc, rec_svc, database)};
+    });
+
+    // ── Driver / Request / Timeline API routes ──────────────────────────────
+    addRoute("GET", "/api/drivers", [&](const HttpRequest&) {
+        return HttpResponse{200, "application/json", api::handleGetDrivers(database)};
+    });
+
+    addRoute("GET", "/api/drivers/{id}", [&](const HttpRequest& req) {
+        std::string id = req.headers.count("_param_id") ? req.headers.at("_param_id") : "";
+        return HttpResponse{200, "application/json", api::handleGetDriver(id, database)};
+    });
+
+    addRoute("GET", "/api/drivers/{id}/shipments", [&](const HttpRequest& req) {
+        std::string id = req.headers.count("_param_id") ? req.headers.at("_param_id") : "";
+        return HttpResponse{200, "application/json",
+            api::handleGetDriverShipments(id, database, ship_svc)};
+    });
+
+    addRoute("GET", "/api/driver-requests", [&](const HttpRequest&) {
+        return HttpResponse{200, "application/json", api::handleGetDriverRequests(database)};
+    });
+
+    addRoute("POST", "/api/driver-requests", [&](const HttpRequest& req) {
+        return HttpResponse{200, "application/json",
+            api::handlePostDriverRequest(req.body, database)};
+    });
+
+    addRoute("GET", "/api/driver-requests/{id}", [&](const HttpRequest& req) {
+        std::string id = req.headers.count("_param_id") ? req.headers.at("_param_id") : "";
+        return HttpResponse{200, "application/json", api::handleGetDriverRequest(id, database)};
+    });
+
+    addRoute("POST", "/api/driver-requests/{id}/approve", [&](const HttpRequest& req) {
+        std::string id = req.headers.count("_param_id") ? req.headers.at("_param_id") : "";
+        return HttpResponse{200, "application/json",
+            api::handleApproveDriverRequest(id, req.body, database)};
+    });
+
+    addRoute("POST", "/api/driver-requests/{id}/reject", [&](const HttpRequest& req) {
+        std::string id = req.headers.count("_param_id") ? req.headers.at("_param_id") : "";
+        return HttpResponse{200, "application/json",
+            api::handleRejectDriverRequest(id, req.body, database)};
+    });
+
+    addRoute("GET", "/api/notifications/{id}", [&](const HttpRequest& req) {
+        std::string id = req.headers.count("_param_id") ? req.headers.at("_param_id") : "";
+        return HttpResponse{200, "application/json", api::handleGetNotifications(id, database)};
+    });
+
+    addRoute("POST", "/api/notifications/{id}/read", [&](const HttpRequest& req) {
+        std::string id = req.headers.count("_param_id") ? req.headers.at("_param_id") : "";
+        return HttpResponse{200, "application/json", api::handleMarkNotificationRead(id, database)};
+    });
+
+    addRoute("GET", "/api/shipments/{shipment_id}/timeline", [&](const HttpRequest& req) {
+        std::string sid = req.headers.count("_param_shipment_id") ?
+            req.headers.at("_param_shipment_id") : "";
+        return HttpResponse{200, "application/json",
+            api::handleGetShipmentTimeline(sid, database)};
+    });
+
+    addRoute("GET", "/api/shipments/{shipment_id}/location", [&](const HttpRequest& req) {
+        std::string sid = req.headers.count("_param_shipment_id") ?
+            req.headers.at("_param_shipment_id") : "";
+        return HttpResponse{200, "application/json",
+            api::handleGetShipmentLocation(sid, database)};
+    });
+
+    addRoute("GET", "/api/shipments/{shipment_id}/route", [&](const HttpRequest& req) {
+        std::string sid = req.headers.count("_param_shipment_id") ?
+            req.headers.at("_param_shipment_id") : "";
+        return HttpResponse{200, "application/json",
+            api::handleGetShipmentRoute(sid, database, ship_svc)};
+    });
+
+    addRoute("POST", "/api/shipments/{shipment_id}/reroute", [&](const HttpRequest& req) {
+        std::string sid = req.headers.count("_param_shipment_id") ?
+            req.headers.at("_param_shipment_id") : "";
+        return HttpResponse{200, "application/json",
+            api::handlePostShipmentReroute(sid, req.body, database, ship_svc)};
+    });
+
+    addRoute("GET", "/api/disruptions/{id}/verification", [&](const HttpRequest& req) {
+        std::string id = req.headers.count("_param_id") ? req.headers.at("_param_id") : "";
+        return HttpResponse{200, "application/json",
+            api::handleGetDisruptionVerification(id, database)};
     });
 
     // ── Static file serving ─────────────────────────────────────────────────
@@ -391,11 +479,17 @@ int main(int argc, char* argv[]) {
     addRoute("GET", "/index.html", [&](const HttpRequest&) {
         return serveFile(frontend_dir + "/index.html", "text/html");
     });
+    addRoute("GET", "/driver.html", [&](const HttpRequest&) {
+        return serveFile(frontend_dir + "/driver.html", "text/html");
+    });
     addRoute("GET", "/css/dashboard.css", [&](const HttpRequest&) {
         return serveFile(frontend_dir + "/css/dashboard.css", "text/css");
     });
     addRoute("GET", "/js/dashboard.js", [&](const HttpRequest&) {
         return serveFile(frontend_dir + "/js/dashboard.js", "application/javascript");
+    });
+    addRoute("GET", "/js/driver.js", [&](const HttpRequest&) {
+        return serveFile(frontend_dir + "/js/driver.js", "application/javascript");
     });
 
     // ── Start TCP server ────────────────────────────────────────────────────

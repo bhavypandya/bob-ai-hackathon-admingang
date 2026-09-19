@@ -73,6 +73,36 @@ std::string handleBobQuery(
     services::CarrierService& carrier,
     services::FleetService& fleet,
     services::ColdChainService& cold,
-    services::RecommendationService& rec_svc);
+    services::RecommendationService& rec_svc,
+    db::Database& db);
+
+// ── Driver / Request / Timeline endpoints ─────────────────────────────────────
+std::string handleGetDrivers(db::Database& db);
+std::string handleGetDriver(const std::string& driver_id, db::Database& db);
+std::string handleGetDriverShipments(const std::string& driver_id, db::Database& db,
+                                      services::ShipmentService& ship);
+
+std::string handleGetDriverRequests(db::Database& db);
+std::string handlePostDriverRequest(const std::string& body, db::Database& db);
+std::string handleGetDriverRequest(const std::string& request_id, db::Database& db);
+std::string handleApproveDriverRequest(const std::string& request_id,
+                                        const std::string& body, db::Database& db);
+std::string handleRejectDriverRequest(const std::string& request_id,
+                                       const std::string& body, db::Database& db);
+
+std::string handleGetNotifications(const std::string& driver_id, db::Database& db);
+std::string handleMarkNotificationRead(const std::string& notif_id, db::Database& db);
+
+std::string handleGetShipmentTimeline(const std::string& shipment_id, db::Database& db);
+std::string handleGetShipmentLocation(const std::string& shipment_id, db::Database& db);
+std::string handleGetShipmentRoute(const std::string& shipment_id, db::Database& db,
+                                    services::ShipmentService& ship);
+
+std::string handleGetDisruptionVerification(const std::string& disruption_event_id,
+                                             db::Database& db);
+
+std::string handlePostShipmentReroute(const std::string& shipment_id,
+                                       const std::string& body, db::Database& db,
+                                       services::ShipmentService& ship);
 
 } // namespace api

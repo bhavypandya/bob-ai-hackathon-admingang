@@ -21,7 +21,14 @@ let state = {
   fleetSort: { col: null, dir: 'asc' },
   overviewSort: { col: null, dir: 'asc' },
   // Stores approve/reject decisions keyed by "route:SH1001" or "carrier:SH1001"
-  decisions: {}
+  decisions: {},
+  // Driver requests
+  driverRequests: [],
+  driverReqFilter: 'all',
+  // Currently viewed shipment for timeline
+  currentDetailShipmentId: null,
+  // Polling
+  pollingInterval: null
 };
 
 // ── API helpers ────────────────────────────────────────────────────────────────
@@ -46,6 +53,8 @@ async function init() {
     await checkHealth();
     await refreshAll();
     hideLoading();
+    // Start polling every 5 seconds for driver requests
+    state.pollingInterval = setInterval(pollDriverRequests, 5000);
   } catch (e) {
     document.getElementById('statusText').textContent = 'Backend offline';
     document.getElementById('statusDot').className = 'status-dot offline';
@@ -83,13 +92,14 @@ function showOfflineMessage() {
 // ── Refresh all data ──────────────────────────────────────────────────────────
 async function refreshAll() {
   try {
-    const [dash, ships, disrupts, fleet, cold, recs] = await Promise.all([
+    const [dash, ships, disrupts, fleet, cold, recs, driverReqs] = await Promise.all([
       apiGet('/api/dashboard'),
       apiGet('/api/shipments'),
       apiGet('/api/disruptions'),
       apiGet('/api/fleet'),
       apiGet('/api/cold-chain/alerts'),
-      apiGet('/api/recommendations')
+      apiGet('/api/recommendations'),
+      apiGet('/api/driver-requests')
     ]);
 
     state.dashboard = dash;
@@ -99,15 +109,34 @@ async function refreshAll() {
     state.fleet = fleet;
     state.coldAlerts = cold;
     state.recommendations = recs;
+    state.driverRequests = driverReqs;
 
     renderOverview();
     renderDisruptions();
     renderShipments();
     renderFleet();
     renderColdChain();
+    renderDriverRequests();
+    updatePendingBadge();
   } catch(e) {
     console.error('Refresh error:', e);
   }
+}
+
+// ── Poll driver requests for real-time updates ────────────────────────────────
+async function pollDriverRequests() {
+  try {
+    const reqs = await apiGet('/api/driver-requests');
+    const prev = state.driverRequests;
+    state.driverRequests = reqs;
+
+    // Check if we're on driver requests section — refresh it
+    const drSection = document.getElementById('section-driverrequests');
+    if (drSection && drSection.classList.contains('active')) {
+      renderDriverRequests();
+    }
+    updatePendingBadge();
+  } catch(e) { /* silent */ }
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────────
@@ -416,6 +445,7 @@ function sortShipments(col) {
 async function showShipmentDetail(id) {
   const s = state.allShipments.find(x => x.id === id);
   if (!s) return;
+  state.currentDetailShipmentId = id;
 
   const panel = document.getElementById('shipmentDetail');
   document.getElementById('detailTitle').textContent = 'Shipment ' + id;
@@ -444,6 +474,7 @@ async function showShipmentDetail(id) {
       </div>`;
   }
 
+  const tMode = transportMode(s.fleet_asset, s.carrier);
   panel.style.display = 'flex';
   document.getElementById('detailContent').innerHTML = `
     <div class="detail-section">
@@ -451,10 +482,14 @@ async function showShipmentDetail(id) {
       <div class="detail-grid">
         <div class="detail-field"><label>Origin</label><span>${s.origin}</span></div>
         <div class="detail-field"><label>Destination</label><span>${s.destination}</span></div>
+        <div class="detail-field"><label>Transport</label><span>${transportModeLabel(tMode)}</span></div>
         <div class="detail-field"><label>Carrier</label><span>${s.carrier}</span></div>
         <div class="detail-field"><label>Route</label><span>${s.current_route}</span></div>
         <div class="detail-field"><label>Priority</label><span class="badge badge-${s.priority}">${s.priority}</span></div>
         <div class="detail-field"><label>Status</label><span class="badge badge-${s.status}">${s.status}</span></div>
+        <div class="detail-field"><label>Departure</label><span>${s.planned_departure || '—'}</span></div>
+        <div class="detail-field"><label>Planned Arrival</label><span>${s.planned_arrival || '—'}</span></div>
+        <div class="detail-field"><label>Current ETA</label><span style="color:${s.expected_delay_hours > 0 ? 'var(--warning)' : 'var(--success)'};font-weight:600">${s.current_eta || s.planned_arrival || '—'}</span></div>
         <div class="detail-field"><label>Expected Delay</label><span>${s.expected_delay_hours > 0 ? '+' + s.expected_delay_hours + 'h' : 'None'}</span></div>
         <div class="detail-field"><label>Risk Score</label><span>${riskBadge(s.risk_level, s.impact_score)}</span></div>
         <div class="detail-field"><label>Cold Chain</label><span>${s.cold_chain ? '❄ Yes' : 'No'}</span></div>
@@ -1113,6 +1148,398 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>');
+}
+
+// ── DRIVER REQUESTS (Admin) ──────────────────────────────────────────────────
+function updatePendingBadge() {
+  const pending = state.driverRequests.filter(r => r.status === 'PENDING').length;
+  const badge = document.getElementById('pendingReqBadge');
+  if (badge) {
+    badge.textContent = pending;
+    badge.style.display = pending > 0 ? 'inline-block' : 'none';
+  }
+}
+
+function filterDriverReqs(filter, btn) {
+  document.querySelectorAll('#section-driverrequests .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  state.driverReqFilter = filter;
+  renderDriverRequests();
+}
+
+function renderDriverRequests() {
+  let reqs = state.driverRequests;
+  if (state.driverReqFilter !== 'all') {
+    reqs = reqs.filter(r => r.status === state.driverReqFilter);
+  }
+
+  const container = document.getElementById('driverRequestsContainer');
+  if (!container) return;
+
+  if (!reqs.length) {
+    container.innerHTML = '<p class="text-muted" style="padding:16px 0">No driver requests found.</p>';
+    return;
+  }
+
+  container.innerHTML = reqs.map(r => {
+    const cls = r.status === 'PENDING' ? 'pending-req' : r.status === 'APPROVED' ? 'approved-req' : 'rejected-req';
+    const statusColor = r.status === 'APPROVED' ? 'SUCCESS' : r.status === 'REJECTED' ? 'DISRUPTED' : 'AT_RISK';
+    return `
+    <div class="driver-req-card ${cls}">
+      <div class="req-card-header-row">
+        <span class="req-card-id-big">${r.id}</span>
+        <div class="req-card-badges">
+          <span class="badge badge-${statusColor}">${r.status}</span>
+          <span class="badge" style="background:#f1f5f9;color:#475569;">${r.request_type}</span>
+        </div>
+      </div>
+      <div class="req-driver-info">👤 ${r.driver_name || r.driver_id} &nbsp;·&nbsp; ${r.driver_id}</div>
+      <div class="req-shipment-info">📦 Shipment: <strong>${r.shipment_id}</strong> &nbsp;|&nbsp; 🕐 ${r.created_at}</div>
+      ${r.location ? `<div class="req-location-tag">📍 ${escapeHtml(r.location)}</div>` : ''}
+      <div class="req-message-box">${escapeHtml(r.message)}</div>
+      ${r.status === 'PENDING' ? `
+        <div class="req-action-row">
+          <button class="btn-approve-req" onclick="approveDriverRequest('${escapeAttr(r.id)}')">✓ Approve</button>
+          <button class="btn-reject-req"  onclick="openRejectDialog('${escapeAttr(r.id)}')">✕ Reject</button>
+          <button class="btn-sm" onclick="openShipmentTimelineById('${escapeAttr(r.shipment_id)}')">🗺 View Timeline</button>
+        </div>` : `
+        <div class="req-action-row">
+          <button class="btn-sm" onclick="openShipmentTimelineById('${escapeAttr(r.shipment_id)}')">🗺 View Timeline</button>
+        </div>`}
+      ${r.admin_response ? `
+        <div class="req-response-box ${r.status === 'REJECTED' ? 'rejected-resp' : ''}">
+          <strong>Admin response:</strong> ${escapeHtml(r.admin_response)}
+          ${r.updated_at ? `<span style="font-size:10px;color:#94a3b8;margin-left:6px">${r.updated_at}</span>` : ''}
+        </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function approveDriverRequest(requestId) {
+  try {
+    const result = await apiPost('/api/driver-requests/' + requestId + '/approve',
+      { admin_response: 'Request approved by operations team.' });
+    if (result.status === 'ok') {
+      await refreshDriverAndShipments();
+    }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function openRejectDialog(requestId) {
+  document.getElementById('rejectRequestId').value = requestId;
+  document.getElementById('rejectReason').value = '';
+  document.getElementById('rejectDialog').classList.add('active');
+}
+
+function closeRejectDialog() {
+  document.getElementById('rejectDialog').classList.remove('active');
+}
+
+async function confirmReject() {
+  const requestId = document.getElementById('rejectRequestId').value;
+  const reason = document.getElementById('rejectReason').value.trim() || 'Request rejected.';
+  closeRejectDialog();
+  try {
+    const result = await apiPost('/api/driver-requests/' + requestId + '/reject',
+      { admin_response: reason });
+    if (result.status === 'ok') {
+      await refreshDriverAndShipments();
+    }
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// Refresh driver requests + shipments after approve/reject
+async function refreshDriverAndShipments() {
+  try {
+    const [reqs, ships] = await Promise.all([
+      apiGet('/api/driver-requests'),
+      apiGet('/api/shipments')
+    ]);
+    state.driverRequests = reqs;
+    state.allShipments = ships;
+    renderDriverRequests();
+    renderShipments();
+    updatePendingBadge();
+  } catch(e) { console.error('Refresh error:', e); }
+}
+
+// ── SHIPMENT TIMELINE MODAL ──────────────────────────────────────────────────
+function openShipmentTimeline() {
+  const id = state.currentDetailShipmentId;
+  if (!id) return;
+  openShipmentTimelineById(id);
+}
+
+async function openShipmentTimelineById(shipmentId) {
+  if (!shipmentId) return;
+  const modal = document.getElementById('timelineModal');
+  const content = document.getElementById('timelineModalContent');
+  modal.classList.add('active');
+  content.innerHTML = '<p class="text-muted" style="padding:20px">Loading timeline for ' + shipmentId + '...</p>';
+
+  try {
+    const tl = await apiGet('/api/shipments/' + shipmentId + '/timeline');
+    content.innerHTML = buildTimelineHtml(tl);
+    // Load verification data asynchronously after HTML is in DOM
+    await loadVerifAfterTimeline(tl);
+  } catch(e) {
+    content.innerHTML = '<p style="color:var(--danger);padding:20px">Failed to load timeline: ' + e.message + '</p>';
+  }
+}
+
+function closeTimelineModal() {
+  document.getElementById('timelineModal').classList.remove('active');
+}
+
+function buildTimelineHtml(tl) {
+  const checkpoints = tl.checkpoints || [];
+  const disEvents   = tl.disruption_events || [];
+  const reroutes    = tl.reroutes || [];
+  const loc         = tl.current_location || {};
+  const drRequests  = tl.driver_requests  || [];
+
+  // Derive transport mode from carrier_id and fleet_asset embedded in timeline data
+  const tMode = transportMode(tl.fleet_asset || '', tl.carrier || '');
+  const tLabel = transportModeLabel(tMode);
+  const tIcon  = tMode === 'SEA' ? '🚢' : tMode === 'RAIL' ? '🚂' : tMode === 'AIR' ? '✈' : '🚛';
+
+  // If no checkpoints, build synthetic ones from origin → destination
+  let sortedCPs = checkpoints.slice().sort((a,b) => parseInt(a.sequence)-parseInt(b.sequence));
+  if (sortedCPs.length === 0 && tl.origin && tl.destination) {
+    sortedCPs = buildSyntheticCheckpoints(tl);
+  }
+
+  let html = `<div style="padding:20px;">
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <h3 style="font-size:16px;font-weight:700;">Shipment ${tl.shipment_id}</h3>
+        <span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;background:${tMode==='SEA'?'#0e4166':tMode==='RAIL'?'#3b1f6e':tMode==='AIR'?'#1a3a1a':'#1a2a3a'};color:${tMode==='SEA'?'#38bdf8':tMode==='RAIL'?'#c4b5fd':tMode==='AIR'?'#4ade80':'#60a5fa'}">${tIcon} ${tLabel}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+        <div><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">ORIGIN</div><strong>${tl.origin||'—'}</strong></div>
+        <div><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">DESTINATION</div><strong>${tl.destination||'—'}</strong></div>
+        <div><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">DEPARTURE</div>${tl.planned_departure||'—'}</div>
+        <div><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">CURRENT ETA</div><strong style="color:${tl.expected_delay_hours>0?'var(--warning)':'var(--success)'}">${tl.current_eta||tl.planned_arrival||'—'}</strong></div>
+        <div><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">STATUS</div><span class="badge badge-${tl.status||''}">${tl.status||'—'}</span></div>
+        ${tl.expected_delay_hours>0?`<div><div style="font-size:10px;color:var(--muted);margin-bottom:2px;">DELAY</div><strong style="color:var(--danger)">+${tl.expected_delay_hours}h</strong></div>`:''}
+      </div>
+    </div>`;
+
+  if (loc.available) {
+    html += `<div class="tl-cur-location">
+      <div class="tl-cur-location-label">📍 CURRENT LOCATION</div>
+      <div class="tl-cur-location-name">${loc.location_name||'Unknown'}</div>
+      <div class="tl-cur-location-meta">Last update: ${loc.timestamp||'—'} · Source: ${loc.accuracy_status||'—'}</div>
+    </div>`;
+  }
+
+  // Special SEA/AIR mode message
+  if (tMode === 'SEA') {
+    html += `<div style="background:#0e2a40;border:1px solid #0369a1;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#38bdf8;">
+      🚢 <strong>Sea Freight Shipment</strong> — This shipment is transported by vessel. Port of loading: ${tl.origin}. Port of discharge: ${tl.destination}.
+      ${disEvents.length > 0 ? ' ⚠ Active maritime disruption detected on this route.' : ''}
+    </div>`;
+  } else if (tMode === 'AIR') {
+    html += `<div style="background:#0a2a0a;border:1px solid #166534;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#4ade80;">
+      ✈ <strong>Air Freight Shipment</strong> — Transported by air cargo. Origin airport: ${tl.origin}. Destination airport: ${tl.destination}.
+    </div>`;
+  }
+
+  html += '<div class="tl-section-label">Journey Timeline</div>';
+
+  // Build merged event sequence: checkpoints interleaved with disruption events and reroutes
+  // Disruption events inject between the checkpoint where disruption occurs and the next one
+  sortedCPs.forEach((cp, idx) => {
+    const dotClass = tlDotClass(cp.status);
+    const icon     = tlIcon(cp.status);
+    const badgeCls = 'tlb-' + cp.status.toLowerCase();
+
+    // Are there disruptions/reroutes that follow this checkpoint?
+    const cpHasDisruption = cp.status === 'DISRUPTED' || cp.status === 'REROUTED';
+    const afterDisruption = disEvents.length > 0 && cpHasDisruption;
+    const afterReroute    = reroutes.length > 0 && cpHasDisruption;
+    const isLast   = idx === sortedCPs.length - 1;
+    const hasMore  = !isLast || afterDisruption || afterReroute;
+
+    html += tlItem(dotClass, icon, cp.name,
+      `<div class="tl-times">
+        ${cp.expected_arrival ? `<div class="tl-time"><strong>Expected:</strong> ${cp.expected_arrival}</div>` : ''}
+        ${cp.actual_arrival   ? `<div class="tl-time"><strong>Arrived:</strong> ${cp.actual_arrival}</div>`   : ''}
+        ${cp.departure_time   ? `<div class="tl-time"><strong>Departed:</strong> ${cp.departure_time}</div>`   : ''}
+      </div>
+      <span class="tl-badge ${badgeCls}">${cp.status}</span>`,
+      hasMore);
+
+    // Inject disruption events and reroutes right after the disrupted checkpoint
+    if (cpHasDisruption) {
+      disEvents.forEach((de, di) => {
+        const hasMoreAfterDis = reroutes.length > 0 || !isLast || di < disEvents.length - 1;
+        html += tlItem('tl-dot-dis-event', '⚠', `<span class="tl-name-dis">⚠ DISRUPTION AT ${de.location}</span>`,
+          `<div class="tl-times">
+            <div class="tl-time"><strong>Type:</strong> ${de.type}</div>
+            <div class="tl-time"><strong>Severity:</strong> <span style="color:${de.severity==='HIGH'||de.severity==='CRITICAL'?'#f87171':'#fbbf24'}">${de.severity}</span></div>
+            <div class="tl-time"><strong>Detected:</strong> ${de.detected_at}</div>
+          </div>
+          <div class="tl-time" style="margin-bottom:6px;color:#f87171;font-weight:600;">📍 Disruption Point: ${de.location}</div>
+          <div class="tl-desc">${escapeHtml(de.description)}</div>
+          ${buildVerifInlineHtml(de.id)}`,
+          hasMoreAfterDis);
+      });
+      reroutes.forEach((rr, ri) => {
+        const hasMoreAfterRR = !isLast || ri < reroutes.length - 1;
+        html += tlItem('tl-dot-rr-event', '↪', '<span class="tl-name-rr">↪ REROUTE APPLIED FROM DISRUPTION POINT</span>',
+          `<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Rerouted from: <strong style="color:#e8eaf0">${rr.from_location}</strong> (where disruption detected)</div>
+          <div class="tl-times">
+            <div class="tl-time"><strong>Disruption at:</strong> ${rr.disruption_location}</div>
+            <div class="tl-time"><strong>Applied:</strong> ${rr.created_at}</div>
+          </div>
+          <div style="margin:6px 0 4px;font-size:11px;color:#94a3b8;">New alternate route:</div>
+          <div class="tl-desc" style="color:#60a5fa;font-weight:600;">${escapeHtml(rr.alternate_route)}</div>
+          ${rr.new_eta ? `<div style="margin-top:6px;font-size:12px;font-weight:700;color:var(--warning);">🕐 New ETA: ${rr.new_eta}</div>` : ''}`,
+          hasMoreAfterRR || !isLast);
+      });
+    }
+  });
+
+  if (sortedCPs.length === 0) {
+    html += `<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">No checkpoint data available.</div>`;
+  }
+
+  html += '</div>';
+
+  // Driver Requests section
+  if (drRequests.length) {
+    html += `<div style="padding:0 20px 16px;">
+      <div class="tl-section-label">Driver Requests</div>`;
+    drRequests.forEach(r => {
+      const scls = r.status === 'APPROVED' ? 'SUCCESS' : r.status === 'REJECTED' ? 'DISRUPTED' : 'AT_RISK';
+      html += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <strong>${r.id}</strong>
+          <span class="badge badge-${scls}">${r.status}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">
+          👤 ${r.driver_name||r.driver_id} &nbsp;·&nbsp; ${r.request_type} &nbsp;·&nbsp; ${r.created_at}
+        </div>
+        <div style="font-size:12px;color:var(--text)">${escapeHtml(r.message)}</div>
+        ${r.admin_response ? `<div style="margin-top:6px;font-size:11px;color:var(--muted);border-left:3px solid ${r.status==='APPROVED'?'var(--success)':'var(--danger)'};padding-left:8px;">
+          <strong>Admin:</strong> ${escapeHtml(r.admin_response)}
+        </div>` : ''}
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// Generate synthetic checkpoints for shipments with no checkpoint data
+function buildSyntheticCheckpoints(tl) {
+  const status = tl.status || 'ON_TIME';
+  const cpStatus = status === 'ON_TIME' ? 'UPCOMING' :
+                   status === 'DISRUPTED' ? 'DISRUPTED' :
+                   status === 'DELAYED'   ? 'CURRENT'  : 'UPCOMING';
+  return [
+    { name: tl.origin, sequence: '1', expected_arrival: tl.planned_departure || '', actual_arrival: tl.planned_departure || '', departure_time: tl.planned_departure || '', status: 'COMPLETED' },
+    { name: 'En Route', sequence: '2', expected_arrival: '', actual_arrival: '', departure_time: '', status: cpStatus === 'DISRUPTED' ? 'DISRUPTED' : 'CURRENT' },
+    { name: tl.destination, sequence: '3', expected_arrival: tl.current_eta || tl.planned_arrival || '', actual_arrival: '', departure_time: '', status: 'UPCOMING' }
+  ];
+}
+
+// Derive transport mode from fleet asset prefix + carrier prefix
+function transportMode(fleetAsset, carrierId) {
+  if (!fleetAsset && !carrierId) return 'ROAD';
+  const fa = (fleetAsset || '').toUpperCase();
+  if (fa.startsWith('V')) return 'SEA';          // Vessel
+  if (fa.startsWith('CN')) return 'RAIL';         // Container/rail
+  // Carrier-based fallback
+  const c = (carrierId || '').toUpperCase();
+  if (c === 'C03' || c === 'C09') return 'SEA';  // OceanWave, IndoShip
+  if (c === 'C05') return 'RAIL';                 // RailFreight India
+  if (c === 'C04') return 'AIR';                  // AirCargo Express
+  return 'ROAD';
+}
+
+function transportModeLabel(mode) {
+  return mode === 'SEA'  ? '🚢 Sea Freight'  :
+         mode === 'RAIL' ? '🚂 Rail Freight'  :
+         mode === 'AIR'  ? '✈ Air Freight'    :
+                           '🚛 Road Freight';
+}
+
+// Build inline verification box by loading synchronously from pre-fetched data
+function buildVerifInlineHtml(disruptionEventId) {
+  // This returns a placeholder that gets filled asynchronously
+  return `<div id="verif-${disruptionEventId}" class="verif-box">
+    <div class="verif-title">🔍 Disruption Verification</div>
+    <div style="font-size:12px;color:var(--muted)">Loading verification data...</div>
+  </div>`;
+}
+
+// Called after timeline modal is populated to load verif data async
+async function loadVerificationForDisruption(disruptionEventId) {
+  const el = document.getElementById('verif-' + disruptionEventId);
+  if (!el) return;
+  try {
+    const v = await apiGet('/api/disruptions/' + disruptionEventId + '/verification');
+    let statusHtml;
+    if (v.verification_status === 'MULTI_SOURCE')
+      statusHtml = `<span class="verif-status-multi">✓ ${v.verification_label}</span>`;
+    else if (v.verification_status === 'SINGLE_SOURCE')
+      statusHtml = `<span class="verif-status-single">⚠ ${v.verification_label}</span>`;
+    else
+      statusHtml = `<span class="verif-status-none">✕ ${v.verification_label}</span>`;
+
+    const sourcesHtml = (v.sources || []).map(s => `
+      <div class="verif-source">
+        <div>
+          <span class="verif-source-name">${escapeHtml(s.source_name)}</span>
+          <span class="verif-source-type vst-${s.source_type.toLowerCase()}">${s.source_type}</span>
+        </div>
+        <div class="verif-source-summary">${escapeHtml(s.summary)}</div>
+        <div class="verif-source-time">Updated: ${s.published_at} &nbsp;·&nbsp; Status: ${s.status}</div>
+      </div>`).join('');
+
+    el.innerHTML = `<div class="verif-title">🔍 Disruption Verification</div>
+      ${statusHtml}
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+        ${v.supported_sources} supporting source(s) of ${v.total_sources} found
+      </div>
+      ${sourcesHtml || '<div style="font-size:11px;color:var(--muted)">No external verification sources available.</div>'}`;
+  } catch(e) {
+    el.innerHTML = '<div class="verif-title">🔍 Disruption Verification</div><div style="font-size:11px;color:var(--muted)">External verification unavailable.</div>';
+  }
+}
+
+async function loadVerifAfterTimeline(tl) {
+  const disEvents = tl.disruption_events || [];
+  for (const de of disEvents) {
+    await loadVerificationForDisruption(de.id);
+  }
+}
+
+// ── Timeline helper functions ─────────────────────────────────────────────────
+function tlDotClass(st) {
+  const m = {COMPLETED:'tl-dot-completed',CURRENT:'tl-dot-current',UPCOMING:'tl-dot-upcoming',
+             DISRUPTED:'tl-dot-disrupted',REROUTED:'tl-dot-rerouted',SKIPPED:'tl-dot-upcoming'};
+  return 'tl-dot ' + (m[st] || 'tl-dot-upcoming');
+}
+function tlIcon(st) {
+  const m = {COMPLETED:'✓',CURRENT:'📍',UPCOMING:'○',DISRUPTED:'⚠',REROUTED:'↪',SKIPPED:'—'};
+  return m[st] || '○';
+}
+function tlItem(dotClass, icon, name, bodyHtml, hasLine) {
+  return `<div class="tl-item">
+    <div class="tl-spine">
+      <div class="${dotClass}">${icon}</div>
+      ${hasLine ? '<div class="tl-line"></div>' : ''}
+    </div>
+    <div class="tl-content">
+      <div class="tl-name">${name}</div>
+      ${bodyHtml}
+    </div>
+  </div>`;
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────

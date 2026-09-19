@@ -402,6 +402,500 @@ std::string handleGetRecommendations(services::RecommendationService& rec_svc) {
     return arr.dump();
 }
 
+// ── Driver / Request / Timeline handlers ──────────────────────────────────────
+
+static json driverRequestToJson(int nc, const char** vals, const char** cols) {
+    json j;
+    for (int i = 0; i < nc; ++i) {
+        std::string col(cols[i]);
+        std::string val = vals[i] ? vals[i] : "";
+        j[col] = val;
+    }
+    return j;
+}
+
+std::string handleGetDrivers(db::Database& db) {
+    json arr = json::array();
+    db.query("SELECT id,name,contact,vehicle_id,status FROM drivers ORDER BY id",
+        [&arr](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            arr.push_back(j);
+        });
+    return arr.dump();
+}
+
+std::string handleGetDriver(const std::string& driver_id, db::Database& db) {
+    json result;
+    result["id"] = "";
+    db.query("SELECT id,name,contact,vehicle_id,status FROM drivers WHERE id='" + driver_id + "'",
+        [&result](int nc, const char** vals, const char** cols) {
+            for (int i = 0; i < nc; ++i) result[cols[i]] = vals[i] ? vals[i] : "";
+        });
+    if (result["id"].get<std::string>().empty()) {
+        json e; e["error"] = "Driver not found"; return e.dump();
+    }
+    return result.dump();
+}
+
+std::string handleGetDriverShipments(const std::string& driver_id, db::Database& db,
+                                      services::ShipmentService& ship) {
+    // Get vehicle assigned to driver
+    std::string vehicle_id;
+    db.query("SELECT vehicle_id FROM drivers WHERE id='" + driver_id + "'",
+        [&vehicle_id](int, const char** vals, const char**) {
+            if (vals[0]) vehicle_id = vals[0];
+        });
+
+    json arr = json::array();
+    if (!vehicle_id.empty()) {
+        for (const auto& s : ship.getAllShipments()) {
+            if (s.fleet_asset == vehicle_id) {
+                json j;
+                j["id"] = s.id;
+                j["origin"] = s.origin;
+                j["destination"] = s.destination;
+                j["status"] = models::Shipment::statusToString(s.status);
+                j["priority"] = models::Shipment::priorityToString(s.priority);
+                j["cargo_type"] = s.cargo_type;
+                j["cold_chain"] = s.cold_chain;
+                j["planned_departure"] = s.planned_departure;
+                j["planned_arrival"] = s.planned_arrival;
+                j["current_eta"] = s.current_eta;
+                j["expected_delay_hours"] = s.expected_delay_hours;
+                j["carrier"] = s.carrier;
+                j["fleet_asset"] = s.fleet_asset;
+                j["current_route"] = s.current_route;
+                arr.push_back(j);
+            }
+        }
+    }
+    return arr.dump();
+}
+
+std::string handleGetDriverRequests(db::Database& db) {
+    json arr = json::array();
+    db.query(R"(SELECT dr.id, dr.driver_id, d.name as driver_name, dr.shipment_id,
+                       dr.request_type, dr.message, dr.location, dr.created_at,
+                       dr.status, dr.admin_response, dr.updated_at
+                FROM driver_requests dr
+                LEFT JOIN drivers d ON dr.driver_id = d.id
+                ORDER BY dr.created_at DESC)",
+        [&arr](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            arr.push_back(j);
+        });
+    return arr.dump();
+}
+
+std::string handlePostDriverRequest(const std::string& body, db::Database& db) {
+    try {
+        auto req = json::parse(body);
+        std::string driver_id  = req.value("driver_id", "");
+        std::string shipment_id = req.value("shipment_id", "");
+        std::string request_type = req.value("request_type", "Other");
+        std::string message    = req.value("message", "");
+        std::string location   = req.value("location", "");
+
+        if (driver_id.empty() || shipment_id.empty()) {
+            json e; e["error"] = "driver_id and shipment_id are required"; return e.dump();
+        }
+
+        // Generate a new request ID
+        int count = 0;
+        db.query("SELECT COUNT(*) FROM driver_requests",
+            [&count](int, const char** vals, const char**) {
+                if (vals[0]) count = std::stoi(vals[0]);
+            });
+        std::string req_id = "REQ" + std::to_string(1000 + count + 1);
+
+        // Get current timestamp placeholder
+        std::string now = "2024-06-10 " + std::to_string(18 + (count % 6)) + ":00";
+
+        // Escape quotes
+        auto esc = [](std::string s) {
+            std::string r;
+            for (char c : s) { if (c == '\'') r += "''"; else r += c; }
+            return r;
+        };
+
+        db.exec("INSERT INTO driver_requests VALUES ('" + req_id + "','" + esc(driver_id) +
+                "','" + esc(shipment_id) + "','" + esc(request_type) + "','" + esc(message) +
+                "','" + esc(location) + "','" + now + "','PENDING','','')");
+
+        // Create a pending notification
+        std::string notif_id = "NOTIF_" + req_id;
+        db.exec("INSERT INTO notifications VALUES ('" + notif_id + "','" + esc(driver_id) +
+                "','Request Submitted','Your " + esc(request_type) + " request " + req_id +
+                " has been submitted and is awaiting admin review.','REQUEST_PENDING','" +
+                req_id + "','" + esc(shipment_id) + "','" + now + "',0)");
+
+        json j;
+        j["status"] = "ok";
+        j["request_id"] = req_id;
+        j["message"] = "Request submitted. Awaiting admin approval.";
+        return j.dump();
+    } catch (...) {
+        json e; e["error"] = "Invalid request body"; return e.dump();
+    }
+}
+
+std::string handleGetDriverRequest(const std::string& request_id, db::Database& db) {
+    json result;
+    result["id"] = "";
+    db.query(R"(SELECT dr.id, dr.driver_id, d.name as driver_name, dr.shipment_id,
+                       dr.request_type, dr.message, dr.location, dr.created_at,
+                       dr.status, dr.admin_response, dr.updated_at
+                FROM driver_requests dr
+                LEFT JOIN drivers d ON dr.driver_id = d.id
+                WHERE dr.id=')" + request_id + "'",
+        [&result](int nc, const char** vals, const char** cols) {
+            for (int i = 0; i < nc; ++i) result[cols[i]] = vals[i] ? vals[i] : "";
+        });
+    if (result["id"].get<std::string>().empty()) {
+        json e; e["error"] = "Request not found"; return e.dump();
+    }
+    return result.dump();
+}
+
+std::string handleApproveDriverRequest(const std::string& request_id,
+                                        const std::string& body, db::Database& db) {
+    std::string admin_response;
+    try {
+        auto req = json::parse(body);
+        admin_response = req.value("admin_response", "Request approved.");
+    } catch (...) {
+        admin_response = "Request approved.";
+    }
+
+    auto esc = [](std::string s) {
+        std::string r;
+        for (char c : s) { if (c == '\'') r += "''"; else r += c; }
+        return r;
+    };
+
+    db.exec("UPDATE driver_requests SET status='APPROVED', admin_response='" +
+            esc(admin_response) + "', updated_at='2024-06-10 18:30' WHERE id='" + request_id + "'");
+
+    // Get driver_id and shipment_id for notification
+    std::string driver_id, shipment_id, req_type;
+    db.query("SELECT driver_id, shipment_id, request_type FROM driver_requests WHERE id='" +
+             request_id + "'",
+        [&](int, const char** vals, const char**) {
+            if (vals[0]) driver_id = vals[0];
+            if (vals[1]) shipment_id = vals[1];
+            if (vals[2]) req_type = vals[2];
+        });
+
+    if (!driver_id.empty()) {
+        // Mark old pending notification read
+        db.exec("UPDATE notifications SET read_status=1 WHERE related_request_id='" +
+                request_id + "' AND type='REQUEST_PENDING'");
+
+        std::string notif_id = "NOTIFAPP_" + request_id;
+        db.exec("INSERT OR REPLACE INTO notifications VALUES ('" + notif_id + "','" +
+                esc(driver_id) + "','Request Approved','" +
+                "Your " + esc(req_type) + " request " + request_id +
+                " has been approved by the operations team. " + esc(admin_response) +
+                "','REQUEST_APPROVED','" + request_id + "','" + esc(shipment_id) +
+                "','2024-06-10 18:30',0)");
+    }
+
+    json j;
+    j["status"] = "ok";
+    j["message"] = "Request " + request_id + " approved.";
+    return j.dump();
+}
+
+std::string handleRejectDriverRequest(const std::string& request_id,
+                                       const std::string& body, db::Database& db) {
+    std::string admin_response;
+    try {
+        auto req = json::parse(body);
+        admin_response = req.value("admin_response", "Request rejected.");
+    } catch (...) {
+        admin_response = "Request rejected.";
+    }
+
+    auto esc = [](std::string s) {
+        std::string r;
+        for (char c : s) { if (c == '\'') r += "''"; else r += c; }
+        return r;
+    };
+
+    db.exec("UPDATE driver_requests SET status='REJECTED', admin_response='" +
+            esc(admin_response) + "', updated_at='2024-06-10 18:35' WHERE id='" + request_id + "'");
+
+    std::string driver_id, shipment_id, req_type;
+    db.query("SELECT driver_id, shipment_id, request_type FROM driver_requests WHERE id='" +
+             request_id + "'",
+        [&](int, const char** vals, const char**) {
+            if (vals[0]) driver_id = vals[0];
+            if (vals[1]) shipment_id = vals[1];
+            if (vals[2]) req_type = vals[2];
+        });
+
+    if (!driver_id.empty()) {
+        db.exec("UPDATE notifications SET read_status=1 WHERE related_request_id='" +
+                request_id + "' AND type='REQUEST_PENDING'");
+
+        std::string notif_id = "NOTIFREJ_" + request_id;
+        db.exec("INSERT OR REPLACE INTO notifications VALUES ('" + notif_id + "','" +
+                esc(driver_id) + "','Request Rejected','" +
+                "Your " + esc(req_type) + " request " + request_id +
+                " was rejected. Reason: " + esc(admin_response) +
+                "','REQUEST_REJECTED','" + request_id + "','" + esc(shipment_id) +
+                "','2024-06-10 18:35',0)");
+    }
+
+    json j;
+    j["status"] = "ok";
+    j["message"] = "Request " + request_id + " rejected.";
+    return j.dump();
+}
+
+std::string handleGetNotifications(const std::string& driver_id, db::Database& db) {
+    json arr = json::array();
+    db.query("SELECT id,driver_id,title,message,type,related_request_id,related_shipment_id,"
+             "created_at,read_status FROM notifications WHERE driver_id='" + driver_id +
+             "' ORDER BY created_at DESC",
+        [&arr](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) {
+                if (std::string(cols[i]) == "read_status")
+                    j[cols[i]] = vals[i] ? (std::string(vals[i]) == "1") : false;
+                else
+                    j[cols[i]] = vals[i] ? vals[i] : "";
+            }
+            arr.push_back(j);
+        });
+    return arr.dump();
+}
+
+std::string handleMarkNotificationRead(const std::string& notif_id, db::Database& db) {
+    db.exec("UPDATE notifications SET read_status=1 WHERE id='" + notif_id + "'");
+    json j; j["status"] = "ok"; return j.dump();
+}
+
+std::string handleGetShipmentTimeline(const std::string& shipment_id, db::Database& db) {
+    json result;
+    result["shipment_id"] = shipment_id;
+
+    // Get shipment base info
+    db.query("SELECT id,origin,destination,status,planned_departure,planned_arrival,"
+             "current_eta,expected_delay_hours,cargo_type,carrier,current_route FROM shipments WHERE id='" +
+             shipment_id + "'",
+        [&result](int nc, const char** vals, const char** cols) {
+            for (int i = 0; i < nc; ++i) result[cols[i]] = vals[i] ? vals[i] : "";
+        });
+
+    // Checkpoints
+    json checkpoints = json::array();
+    db.query("SELECT id,shipment_id,name,latitude,longitude,sequence,expected_arrival,"
+             "actual_arrival,departure_time,status FROM shipment_checkpoints "
+             "WHERE shipment_id='" + shipment_id + "' ORDER BY sequence",
+        [&checkpoints](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            checkpoints.push_back(j);
+        });
+    result["checkpoints"] = checkpoints;
+
+    // Current location
+    json location;
+    location["available"] = false;
+    db.query("SELECT location_name,latitude,longitude,timestamp,source,accuracy_status "
+             "FROM shipment_locations WHERE shipment_id='" + shipment_id +
+             "' ORDER BY timestamp DESC LIMIT 1",
+        [&location](int nc, const char** vals, const char** cols) {
+            location["available"] = true;
+            for (int i = 0; i < nc; ++i) location[cols[i]] = vals[i] ? vals[i] : "";
+        });
+    result["current_location"] = location;
+
+    // Disruption events
+    json disruptions = json::array();
+    db.query("SELECT id,location,latitude,longitude,detected_at,type,severity,description "
+             "FROM disruption_events WHERE shipment_id='" + shipment_id + "'",
+        [&disruptions](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            disruptions.push_back(j);
+        });
+    result["disruption_events"] = disruptions;
+
+    // Reroutes
+    json reroutes = json::array();
+    db.query("SELECT id,from_location,disruption_location,original_route,alternate_route,"
+             "created_at,new_eta,status FROM reroutes WHERE shipment_id='" + shipment_id + "'",
+        [&reroutes](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            reroutes.push_back(j);
+        });
+    result["reroutes"] = reroutes;
+
+    // Driver requests related to this shipment
+    json requests = json::array();
+    db.query(R"(SELECT dr.id,dr.driver_id,d.name as driver_name,dr.request_type,
+                       dr.message,dr.location,dr.created_at,dr.status,dr.admin_response
+                FROM driver_requests dr LEFT JOIN drivers d ON dr.driver_id=d.id
+                WHERE dr.shipment_id=')" + shipment_id + "' ORDER BY dr.created_at",
+        [&requests](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            requests.push_back(j);
+        });
+    result["driver_requests"] = requests;
+
+    return result.dump();
+}
+
+std::string handleGetShipmentLocation(const std::string& shipment_id, db::Database& db) {
+    json result;
+    result["shipment_id"] = shipment_id;
+    result["available"] = false;
+    db.query("SELECT location_name,latitude,longitude,timestamp,source,accuracy_status "
+             "FROM shipment_locations WHERE shipment_id='" + shipment_id +
+             "' ORDER BY timestamp DESC LIMIT 1",
+        [&result](int nc, const char** vals, const char** cols) {
+            result["available"] = true;
+            for (int i = 0; i < nc; ++i) result[cols[i]] = vals[i] ? vals[i] : "";
+        });
+    return result.dump();
+}
+
+std::string handleGetShipmentRoute(const std::string& shipment_id, db::Database& db,
+                                    services::ShipmentService& ship) {
+    json result;
+    result["shipment_id"] = shipment_id;
+
+    auto s = ship.getById(shipment_id);
+    result["origin"] = s.origin;
+    result["destination"] = s.destination;
+    result["current_route"] = s.current_route;
+    result["status"] = models::Shipment::statusToString(s.status);
+
+    json checkpoints = json::array();
+    db.query("SELECT name,sequence,status,expected_arrival,actual_arrival FROM shipment_checkpoints "
+             "WHERE shipment_id='" + shipment_id + "' ORDER BY sequence",
+        [&checkpoints](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            checkpoints.push_back(j);
+        });
+    result["checkpoints"] = checkpoints;
+
+    json reroutes = json::array();
+    db.query("SELECT alternate_route,new_eta,status FROM reroutes WHERE shipment_id='" +
+             shipment_id + "'",
+        [&reroutes](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            reroutes.push_back(j);
+        });
+    result["reroutes"] = reroutes;
+
+    return result.dump();
+}
+
+std::string handleGetDisruptionVerification(const std::string& disruption_event_id,
+                                             db::Database& db) {
+    json result;
+    result["disruption_event_id"] = disruption_event_id;
+
+    // Get disruption event info
+    db.query("SELECT id,shipment_id,location,detected_at,type,severity,description "
+             "FROM disruption_events WHERE id='" + disruption_event_id + "'",
+        [&result](int nc, const char** vals, const char** cols) {
+            for (int i = 0; i < nc; ++i) result[cols[i]] = vals[i] ? vals[i] : "";
+        });
+
+    // Get verification sources
+    json sources = json::array();
+    db.query("SELECT id,source_name,source_type,source_url,published_at,summary,status "
+             "FROM verification_sources WHERE disruption_event_id='" + disruption_event_id + "'",
+        [&sources](int nc, const char** vals, const char** cols) {
+            json j;
+            for (int i = 0; i < nc; ++i) j[cols[i]] = vals[i] ? vals[i] : "";
+            sources.push_back(j);
+        });
+    result["sources"] = sources;
+
+    // Calculate verification status
+    int supported = 0;
+    for (const auto& s : sources) {
+        if (s.value("status","") == "SUPPORTED") supported++;
+    }
+
+    std::string verification_status;
+    if (sources.empty()) {
+        verification_status = "UNVERIFIED";
+    } else if (supported == 0) {
+        verification_status = "UNVERIFIED";
+    } else if (supported == 1) {
+        verification_status = "SINGLE_SOURCE";
+    } else {
+        verification_status = "MULTI_SOURCE";
+    }
+    result["verification_status"] = verification_status;
+    result["supported_sources"] = supported;
+    result["total_sources"] = (int)sources.size();
+
+    std::string label;
+    if (verification_status == "MULTI_SOURCE") label = "SUPPORTED BY MULTIPLE SOURCES";
+    else if (verification_status == "SINGLE_SOURCE") label = "SINGLE-SOURCE SUPPORT";
+    else label = "UNVERIFIED — No independent supporting source found";
+    result["verification_label"] = label;
+
+    return result.dump();
+}
+
+std::string handlePostShipmentReroute(const std::string& shipment_id,
+                                       const std::string& body, db::Database& db,
+                                       services::ShipmentService& ship) {
+    try {
+        auto req = json::parse(body);
+        std::string from_location = req.value("from_location", "Current Location");
+        std::string disruption_location = req.value("disruption_location", "");
+        std::string original_route = req.value("original_route", "");
+        std::string alternate_route = req.value("alternate_route", "");
+        std::string new_eta = req.value("new_eta", "");
+
+        auto esc = [](std::string s) {
+            std::string r;
+            for (char c : s) { if (c == '\'') r += "''"; else r += c; }
+            return r;
+        };
+
+        int count = 0;
+        db.query("SELECT COUNT(*) FROM reroutes",
+            [&count](int, const char** vals, const char**) {
+                if (vals[0]) count = std::stoi(vals[0]);
+            });
+        std::string rr_id = "RR" + std::to_string(count + 1).insert(0, 3 - std::to_string(count+1).size(), '0');
+
+        db.exec("INSERT INTO reroutes VALUES ('" + rr_id + "','" + esc(shipment_id) +
+                "','" + esc(from_location) + "','" + esc(disruption_location) +
+                "','" + esc(original_route) + "','" + esc(alternate_route) +
+                "','2024-06-10 18:25','" + esc(new_eta) + "','ACTIVE')");
+
+        if (!new_eta.empty()) {
+            db.exec("UPDATE shipments SET current_eta='" + esc(new_eta) + "' WHERE id='" +
+                    esc(shipment_id) + "'");
+        }
+
+        json j;
+        j["status"] = "ok";
+        j["reroute_id"] = rr_id;
+        j["message"] = "Reroute created for shipment " + shipment_id;
+        return j.dump();
+    } catch (...) {
+        json e; e["error"] = "Invalid request body"; return e.dump();
+    }
+}
+
 // ── Bob query handler ─────────────────────────────────────────────────────────
 static std::string toLower(const std::string& s) {
     std::string r = s;
@@ -417,7 +911,8 @@ std::string handleBobQuery(
     services::CarrierService& carrier,
     services::FleetService& fleet,
     services::ColdChainService& cold,
-    services::RecommendationService& rec_svc) {
+    services::RecommendationService& rec_svc,
+    db::Database& db) {
 
     std::string question;
     try {
@@ -574,6 +1069,165 @@ std::string handleBobQuery(
             oss << "  Severity: " << models::Disruption::severityToString(d.severity) << "\n";
             oss << "  " << d.description << "\n\n";
         }
+        answer = oss.str();
+
+    // ── New queries: shipment timeline, driver requests, location ────────────
+    } else if ((q.find("sh1042") != std::string::npos || q.find("sh 1042") != std::string::npos) ||
+               (q.find("timeline") != std::string::npos && q.find("shipment") != std::string::npos)) {
+        // Which shipment are they asking about?
+        std::string sid = "SH1042";
+        // Try to extract explicit SH-ID
+        for (const auto& s : ship.getAllShipments()) {
+            if (q.find(toLower(s.id)) != std::string::npos) { sid = s.id; break; }
+        }
+        std::ostringstream oss;
+        oss << "Shipment " << sid << " Timeline\n";
+        oss << "─────────────────────────────────\n\n";
+
+        // Base info
+        auto s = ship.getById(sid);
+        if (!s.id.empty()) {
+            oss << "Origin:       " << s.origin << "\n";
+            oss << "Destination:  " << s.destination << "\n";
+            oss << "Status:       " << models::Shipment::statusToString(s.status) << "\n";
+            oss << "Departure:    " << s.planned_departure << "\n";
+            oss << "Original ETA: " << s.planned_arrival << "\n";
+            oss << "Current ETA:  " << s.current_eta << "\n";
+            if (s.expected_delay_hours > 0)
+                oss << "Delay:        +" << s.expected_delay_hours << " hours\n";
+            oss << "\n";
+        }
+
+        // Checkpoints
+        bool has_checkpoints = false;
+        db.query("SELECT name,sequence,expected_arrival,actual_arrival,departure_time,status "
+                 "FROM shipment_checkpoints WHERE shipment_id='" + sid + "' ORDER BY sequence",
+            [&oss, &has_checkpoints](int nc, const char** vals, const char** cols) {
+                has_checkpoints = true;
+                std::string name = vals[0] ? vals[0] : "";
+                std::string exp  = vals[2] ? vals[2] : "";
+                std::string act  = vals[3] ? vals[3] : "";
+                std::string dep  = vals[4] ? vals[4] : "";
+                std::string st   = vals[5] ? vals[5] : "";
+                std::string icon = "○";
+                if (st == "COMPLETED") icon = "✓";
+                else if (st == "CURRENT") icon = "📍";
+                else if (st == "DISRUPTED") icon = "⚠";
+                else if (st == "REROUTED") icon = "↪";
+                oss << icon << " " << name << "  [" << st << "]\n";
+                if (!act.empty())  oss << "   Arrived:   " << act << "\n";
+                else if (!exp.empty()) oss << "   Expected:  " << exp << "\n";
+                if (!dep.empty())  oss << "   Departed:  " << dep << "\n";
+                oss << "\n";
+            });
+
+        if (!has_checkpoints) {
+            oss << "No checkpoint data available for this shipment.\n\n";
+        }
+
+        // Location
+        std::string loc_name;
+        db.query("SELECT location_name,timestamp,accuracy_status FROM shipment_locations "
+                 "WHERE shipment_id='" + sid + "' ORDER BY timestamp DESC LIMIT 1",
+            [&oss, &loc_name](int, const char** vals, const char**) {
+                if (vals[0]) loc_name = vals[0];
+                oss << "Current Location: " << (vals[0] ? vals[0] : "Unknown") << "\n";
+                oss << "Last Update:      " << (vals[1] ? vals[1] : "—") << "\n";
+                oss << "Source:           " << (vals[2] ? vals[2] : "—") << "\n\n";
+            });
+
+        // Disruption events
+        db.query("SELECT location,detected_at,type,description FROM disruption_events "
+                 "WHERE shipment_id='" + sid + "'",
+            [&oss](int, const char** vals, const char**) {
+                oss << "⚠ DISRUPTION DETECTED\n";
+                oss << "  Location:  " << (vals[0] ? vals[0] : "—") << "\n";
+                oss << "  Detected:  " << (vals[1] ? vals[1] : "—") << "\n";
+                oss << "  Type:      " << (vals[2] ? vals[2] : "—") << "\n";
+                oss << "  Details:   " << (vals[3] ? vals[3] : "—") << "\n\n";
+            });
+
+        // Reroutes
+        db.query("SELECT from_location,disruption_location,alternate_route,created_at,new_eta "
+                 "FROM reroutes WHERE shipment_id='" + sid + "'",
+            [&oss](int, const char** vals, const char**) {
+                oss << "↪ REROUTE APPLIED\n";
+                oss << "  From:            " << (vals[0] ? vals[0] : "—") << "\n";
+                oss << "  Disruption at:   " << (vals[1] ? vals[1] : "—") << "\n";
+                oss << "  Alternate route: " << (vals[2] ? vals[2] : "—") << "\n";
+                oss << "  Rerouted at:     " << (vals[3] ? vals[3] : "—") << "\n";
+                oss << "  New ETA:         " << (vals[4] ? vals[4] : "—") << "\n\n";
+            });
+
+        // Driver requests
+        db.query(R"(SELECT dr.id,d.name,dr.request_type,dr.created_at,dr.status,dr.admin_response
+                    FROM driver_requests dr LEFT JOIN drivers d ON dr.driver_id=d.id
+                    WHERE dr.shipment_id=')" + sid + "'",
+            [&oss](int, const char** vals, const char**) {
+                oss << "Driver Request: " << (vals[0] ? vals[0] : "?") << "\n";
+                oss << "  Driver:   " << (vals[1] ? vals[1] : "—") << "\n";
+                oss << "  Type:     " << (vals[2] ? vals[2] : "—") << "\n";
+                oss << "  Submitted:" << (vals[3] ? vals[3] : "—") << "\n";
+                oss << "  Status:   " << (vals[4] ? vals[4] : "—") << "\n";
+                if (vals[5] && std::string(vals[5]).size() > 0)
+                    oss << "  Response: " << vals[5] << "\n";
+                oss << "\n";
+            });
+
+        answer = oss.str();
+
+    } else if (q.find("driver request") != std::string::npos ||
+               q.find("pending request") != std::string::npos ||
+               q.find("approved request") != std::string::npos) {
+        std::ostringstream oss;
+        oss << "Driver Request Summary\n─────────────────────\n\n";
+        db.query(R"(SELECT dr.id,d.name,dr.shipment_id,dr.request_type,dr.status,dr.created_at
+                    FROM driver_requests dr LEFT JOIN drivers d ON dr.driver_id=d.id
+                    ORDER BY dr.created_at DESC)",
+            [&oss](int, const char** vals, const char**) {
+                std::string st = vals[4] ? vals[4] : "";
+                std::string icon = (st == "APPROVED") ? "✓" : (st == "REJECTED") ? "✕" : "⏳";
+                oss << icon << " " << (vals[0] ? vals[0] : "?") << "  |  "
+                    << (vals[1] ? vals[1] : "?") << "  |  "
+                    << (vals[2] ? vals[2] : "?") << "  |  "
+                    << (vals[3] ? vals[3] : "?") << "  |  " << st << "\n";
+            });
+        answer = oss.str();
+
+    } else if (q.find("current location") != std::string::npos ||
+               q.find("where is") != std::string::npos ||
+               q.find("location of") != std::string::npos) {
+        std::ostringstream oss;
+        oss << "Last Known Shipment Locations\n─────────────────────────────\n\n";
+        db.query("SELECT sl.shipment_id, sl.location_name, sl.timestamp, sl.accuracy_status "
+                 "FROM shipment_locations sl "
+                 "INNER JOIN (SELECT shipment_id, MAX(timestamp) as mt FROM shipment_locations GROUP BY shipment_id) "
+                 "latest ON sl.shipment_id=latest.shipment_id AND sl.timestamp=latest.mt",
+            [&oss](int, const char** vals, const char**) {
+                oss << "  " << (vals[0]?vals[0]:"?") << ":  " << (vals[1]?vals[1]:"Unknown")
+                    << "  (" << (vals[2]?vals[2]:"—") << ")  [" << (vals[3]?vals[3]:"—") << "]\n";
+            });
+        answer = oss.str();
+
+    } else if (q.find("verification") != std::string::npos ||
+               q.find("verified") != std::string::npos ||
+               q.find("supported") != std::string::npos) {
+        std::ostringstream oss;
+        oss << "Disruption Verification Status\n───────────────────────────────\n\n";
+        db.query("SELECT de.id, de.shipment_id, de.location, de.type, "
+                 "COUNT(vs.id) as sources, SUM(CASE WHEN vs.status='SUPPORTED' THEN 1 ELSE 0 END) as supported "
+                 "FROM disruption_events de LEFT JOIN verification_sources vs ON de.id=vs.disruption_event_id "
+                 "GROUP BY de.id",
+            [&oss](int, const char** vals, const char**) {
+                int total = vals[4] ? std::stoi(vals[4]) : 0;
+                int supp  = vals[5] ? std::stoi(vals[5]) : 0;
+                std::string status = (supp >= 2) ? "MULTI_SOURCE SUPPORTED" :
+                                     (supp == 1) ? "SINGLE SOURCE" : "UNVERIFIED";
+                oss << "  " << (vals[0]?vals[0]:"?") << " (Shipment " << (vals[1]?vals[1]:"?") << ")\n";
+                oss << "  Location: " << (vals[2]?vals[2]:"?") << "  Type: " << (vals[3]?vals[3]:"?") << "\n";
+                oss << "  Sources: " << supp << "/" << total << " support this event\n";
+                oss << "  Status:  " << status << "\n\n";
+            });
         answer = oss.str();
 
     } else {

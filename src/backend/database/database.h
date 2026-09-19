@@ -47,6 +47,15 @@ private:
     void seedFleetAssets();
     void seedSensorReadings();
     void seedColdChainConfig();
+    // New seed methods for driver/request/timeline features
+    void seedDrivers();
+    void seedDriverRequests();
+    void seedNotifications();
+    void seedShipmentCheckpoints();
+    void seedShipmentLocations();
+    void seedDisruptionEvents();
+    void seedReroutes();
+    void seedVerificationSources();
 };
 
 // Global singleton accessor

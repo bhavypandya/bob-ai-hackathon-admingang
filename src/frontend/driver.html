@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SupplyGuard — Driver Portal</title>
+<link rel="stylesheet" href="css/dashboard.css">
+<style>
+/* ── Driver Portal Overrides ───────────────────────────────── */
+body { background:#080b12; }
+
+.driver-header {
+  background:linear-gradient(90deg,#0d1117 0%,#0f172a 100%);
+  border-bottom:1px solid #1e2a3a;
+  padding:0 24px;
+  height:60px;
+  display:flex; align-items:center; justify-content:space-between;
+  box-shadow:0 2px 12px rgba(0,0,0,.5);
+  position:sticky; top:0; z-index:200;
+}
+.driver-brand { display:flex; align-items:center; gap:12px; }
+.driver-brand-icon {
+  width:36px; height:36px;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+  border-radius:8px; display:flex; align-items:center;
+  justify-content:center; font-size:18px; color:#fff;
+  box-shadow:0 2px 8px rgba(37,99,235,.4);
+}
+.driver-brand-name { font-size:17px; font-weight:700; color:#e8eaf0; letter-spacing:-.2px; }
+.driver-brand-sub { font-size:10px; color:#4b5563; letter-spacing:1.2px; text-transform:uppercase; }
+.driver-info { display:flex; align-items:center; gap:14px; }
+.driver-selector-wrap { display:flex; align-items:center; gap:8px; }
+.driver-selector-wrap label { font-size:11px; color:#6b7280; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+.driver-select {
+  background:#141720; border:1px solid #2a2d3e; color:#e8eaf0;
+  padding:7px 12px; border-radius:7px; font-size:13px; cursor:pointer;
+  transition:border-color .2s;
+}
+.driver-select:focus { outline:none; border-color:#3b82d4; }
+.notif-bell {
+  position:relative; cursor:pointer;
+  background:#141720; border:1px solid #2a2d3e;
+  border-radius:7px; padding:8px 11px; font-size:15px; color:#e8eaf0;
+  transition:background .2s,border-color .2s;
+}
+.notif-bell:hover { background:#1e2130; border-color:#3b82d4; }
+.notif-badge {
+  position:absolute; top:-5px; right:-5px;
+  background:#dc2626; color:#fff; font-size:9px; font-weight:700;
+  border-radius:10px; padding:2px 5px; min-width:17px; text-align:center;
+  border:2px solid #080b12;
+}
+
+/* ── Driver Nav ───────────────────────────────────────────── */
+.driver-nav {
+  background:#0d1117; border-bottom:1px solid #1e2130;
+  padding:0 24px; display:flex; gap:2px;
+  position:sticky; top:60px; z-index:190;
+}
+.driver-nav-btn {
+  background:none; border:none; color:#6b7280;
+  padding:14px 18px; font-size:13px; font-weight:500;
+  cursor:pointer; border-bottom:2px solid transparent;
+  transition:color .2s,border-color .2s;
+  display:flex; align-items:center; gap:6px;
+}
+.driver-nav-btn.active { color:#3b82d4; border-bottom-color:#3b82d4; }
+.driver-nav-btn:hover { color:#e8eaf0; }
+
+/* ── Main content ──────────────────────────────────────────── */
+.driver-main { padding:24px; max-width:1100px; }
+
+/* ── No-driver placeholder ─────────────────────────────────── */
+.no-driver-msg {
+  text-align:center; padding:48px 20px;
+  background:#0d1117; border:1px dashed #2a2d3e; border-radius:12px;
+}
+.no-driver-msg .ndm-icon { font-size:40px; margin-bottom:16px; }
+.no-driver-msg p { font-size:14px; color:#6b7280; }
+
+/* ── Shipment card ─────────────────────────────────────────── */
+.shipment-card {
+  background:#0d1117; border:1px solid #1e2130;
+  border-radius:12px; padding:18px 20px; margin-bottom:12px;
+  cursor:pointer; transition:border-color .2s,transform .1s,box-shadow .2s;
+}
+.shipment-card:hover, .shipment-card.selected {
+  border-color:#3b82d4; box-shadow:0 0 0 1px #3b82d4;
+  transform:translateY(-1px);
+}
+.shipment-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.shipment-card-id { font-size:15px; font-weight:700; color:#e8eaf0; }
+.shipment-card-route {
+  font-size:13px; color:#6b7280; margin-bottom:10px;
+  display:flex; align-items:center; gap:6px;
+}
+.shipment-card-meta { display:flex; gap:12px; flex-wrap:wrap; }
+.shipment-meta-item { font-size:12px; color:#4b5563; }
+.shipment-meta-item strong { color:#9ca3af; }
+.shipment-card-footer {
+  margin-top:12px; padding-top:10px; border-top:1px solid #1e2130;
+  font-size:11px; color:#3b82d4; font-weight:600;
+  display:flex; align-items:center; gap:6px;
+}
+
+/* ── Transport mode badges ─────────────────────────────────── */
+.tmode-road { background:#1a2a3a; color:#60a5fa; border:1px solid #2563eb22; }
+.tmode-sea  { background:#0e2a40; color:#38bdf8; border:1px solid #0369a122; }
+.tmode-rail { background:#2a1a3a; color:#c4b5fd; border:1px solid #7c3aed22; }
+.tmode-air  { background:#0a2a0a; color:#4ade80; border:1px solid #16a34a22; }
+.tmode-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px;
+}
+
+/* ── Timeline ──────────────────────────────────────────────── */
+.timeline-outer { background:#0d1117; border:1px solid #1e2130; border-radius:12px; padding:20px; }
+.timeline-wrap { padding:8px 0; }
+.timeline-item { display:flex; gap:16px; margin-bottom:4px; }
+.timeline-spine { display:flex; flex-direction:column; align-items:center; }
+.timeline-dot {
+  width:30px; height:30px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; flex-shrink:0; border:2px solid transparent;
+}
+.timeline-dot.completed   { background:#15803d; border-color:#166534; color:#fff; }
+.timeline-dot.current     { background:#1d4ed8; border-color:#2563eb; color:#fff; animation:pulse-dot 2s infinite; }
+.timeline-dot.upcoming    { background:#141720; border-color:#374151; color:#6b7280; }
+.timeline-dot.disrupted   { background:#7c3aed; border-color:#6d28d9; color:#fff; }
+.timeline-dot.rerouted    { background:#d97706; border-color:#b45309; color:#fff; }
+.timeline-dot.disruption-event { background:#dc2626; border-color:#b91c1c; color:#fff; }
+.timeline-dot.reroute-event    { background:#0369a1; border-color:#0284c7; color:#fff; }
+@keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 0 rgba(59,130,212,.4)} 50%{box-shadow:0 0 0 8px rgba(59,130,212,0)} }
+.timeline-line { width:2px; flex:1; min-height:20px; background:#1e2130; margin:2px 0; }
+.timeline-content { padding:0 0 16px 0; flex:1; }
+.timeline-name { font-size:14px; font-weight:600; color:#e8eaf0; margin-bottom:4px; }
+.timeline-name.disruption-name { color:#f87171; }
+.timeline-name.reroute-name    { color:#60a5fa; }
+.timeline-times { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:5px; }
+.timeline-time-item { font-size:11px; color:#4b5563; }
+.timeline-time-item strong { color:#9ca3af; }
+.timeline-status-badge {
+  display:inline-block; font-size:10px; font-weight:600;
+  letter-spacing:.5px; padding:2px 8px; border-radius:4px; margin-top:4px;
+}
+.tsb-completed  { background:#14532d; color:#4ade80; }
+.tsb-current    { background:#1e3a5f; color:#60a5fa; }
+.tsb-upcoming   { background:#1f2937; color:#6b7280; }
+.tsb-disrupted  { background:#4c1d95; color:#c4b5fd; }
+.tsb-rerouted   { background:#451a03; color:#fbbf24; }
+.current-location-card {
+  background:#0f2240; border:1px solid #1d4ed8; border-radius:8px;
+  padding:10px 14px; margin-bottom:12px;
+}
+.current-location-label { font-size:10px; font-weight:700; letter-spacing:1px; color:#60a5fa; margin-bottom:4px; }
+.current-location-name  { font-size:15px; font-weight:700; color:#e8eaf0; }
+.current-location-meta  { font-size:11px; color:#6b7280; margin-top:3px; }
+.tl-summary-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:10px; background:#141720; border:1px solid #1e2130;
+  border-radius:8px; padding:12px; margin-bottom:14px;
+}
+.tl-summary-cell .label { font-size:10px; color:#4b5563; text-transform:uppercase; letter-spacing:.5px; margin-bottom:3px; }
+.tl-summary-cell .value { font-size:13px; color:#e8eaf0; font-weight:600; }
+
+/* ── Request form ──────────────────────────────────────────── */
+.request-form {
+  background:#0d1117; border:1px solid #1e2130;
+  border-radius:12px; padding:24px;
+}
+.form-row { margin-bottom:16px; }
+.form-label {
+  font-size:11px; font-weight:700; color:#6b7280;
+  letter-spacing:.5px; text-transform:uppercase; margin-bottom:7px; display:block;
+}
+.form-select, .form-input, .form-textarea {
+  width:100%; background:#080b12; border:1px solid #2a2d3e;
+  color:#e8eaf0; padding:9px 12px; border-radius:7px;
+  font-size:13px; box-sizing:border-box; transition:border-color .2s;
+}
+.form-select:focus, .form-input:focus, .form-textarea:focus {
+  outline:none; border-color:#3b82d4; background:#0a0e18;
+}
+.form-textarea { min-height:90px; resize:vertical; font-family:inherit; line-height:1.5; }
+.btn-submit-request {
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+  color:#fff; border:none; border-radius:7px; padding:11px 28px;
+  font-size:13px; font-weight:700; cursor:pointer; transition:opacity .2s;
+  box-shadow:0 2px 8px rgba(37,99,235,.3);
+}
+.btn-submit-request:hover { opacity:.9; }
+.btn-submit-request:disabled { background:#374151; cursor:not-allowed; box-shadow:none; }
+
+/* ── Route change dropdown hint ────────────────────────────── */
+.route-points-hint {
+  margin-top:6px; padding:10px 12px;
+  background:#080b12; border:1px solid #2a2d3e; border-radius:6px;
+  font-size:11px; color:#6b7280;
+}
+.route-points-hint.visible { display:block; }
+.route-points-hint { display:none; }
+
+/* ── Request cards ─────────────────────────────────────────── */
+.req-card {
+  background:#0d1117; border:1px solid #1e2130;
+  border-radius:10px; padding:16px 18px; margin-bottom:10px;
+  transition:border-color .2s;
+}
+.req-card:hover { border-color:#374151; }
+.req-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+.req-card-id   { font-size:13px; font-weight:700; color:#e8eaf0; }
+.req-card-type { font-size:11px; color:#6b7280; background:#141720; padding:2px 8px; border-radius:4px; }
+.req-card-body { font-size:13px; color:#9ca3af; margin-bottom:8px; line-height:1.5; }
+.req-card-meta { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:#4b5563; }
+.req-status-pill {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:11px; font-weight:600; padding:3px 10px; border-radius:12px;
+}
+.rsp-pending  { background:#1f2937; color:#9ca3af; }
+.rsp-approved { background:#14532d; color:#4ade80; }
+.rsp-rejected { background:#450a0a; color:#f87171; }
+.req-response {
+  background:#080b12; border-radius:6px; padding:8px 12px;
+  font-size:12px; color:#9ca3af; margin-top:8px; border-left:3px solid #374151;
+}
+.req-response.approved-resp { border-left-color:#166534; }
+.req-response.rejected-resp { border-left-color:#dc2626; }
+
+/* ── Notification panel ────────────────────────────────────── */
+.notif-panel {
+  position:fixed; top:64px; right:24px; width:380px;
+  background:#0d1117; border:1px solid #1e2130;
+  border-radius:12px; z-index:1000;
+  box-shadow:0 12px 40px rgba(0,0,0,.8); display:none;
+}
+.notif-panel.open { display:block; }
+.notif-panel-header {
+  padding:14px 16px; border-bottom:1px solid #1e2130;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.notif-panel-title { font-size:13px; font-weight:700; color:#e8eaf0; }
+.notif-panel-close { background:none; border:none; color:#6b7280; cursor:pointer; font-size:16px; }
+.notif-panel-list { max-height:420px; overflow-y:auto; }
+.notif-item { padding:12px 16px; border-bottom:1px solid #141720; cursor:pointer; transition:background .15s; }
+.notif-item:hover { background:#141720; }
+.notif-item.unread { border-left:3px solid #3b82d4; }
+.notif-item-title { font-size:12px; font-weight:600; color:#e8eaf0; margin-bottom:3px; }
+.notif-item-msg { font-size:11px; color:#6b7280; line-height:1.5; }
+.notif-item-time { font-size:10px; color:#374151; margin-top:4px; }
+.notif-type-request-approved .notif-item-title { color:#4ade80; }
+.notif-type-request-rejected .notif-item-title { color:#f87171; }
+.notif-empty { padding:24px; text-align:center; color:#374151; font-size:12px; }
+
+/* ── Section panels ────────────────────────────────────────── */
+.driver-section { display:none; }
+.driver-section.active { display:block; }
+.section-title {
+  font-size:18px; font-weight:700; color:#e8eaf0;
+  margin-bottom:18px; padding-bottom:12px;
+  border-bottom:1px solid #1e2130;
+  display:flex; align-items:center; gap:8px;
+}
+.two-col-layout { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:800px){ .two-col-layout{ grid-template-columns:1fr; } }
+.panel-box {
+  background:#0d1117; border:1px solid #1e2130;
+  border-radius:10px; padding:16px;
+}
+.panel-box-title {
+  font-size:11px; font-weight:700; color:#6b7280;
+  letter-spacing:.8px; text-transform:uppercase; margin-bottom:12px;
+}
+.success-toast {
+  position:fixed; bottom:28px; right:28px;
+  background:#14532d; color:#4ade80; border:1px solid #166534;
+  border-radius:10px; padding:14px 22px; font-size:13px; font-weight:700;
+  z-index:2000; display:none; box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="driver-header">
+  <div class="driver-brand">
+    <div class="driver-brand-icon">🚛</div>
+    <div>
+      <div class="driver-brand-name">SupplyGuard Driver Portal</div>
+      <div class="driver-brand-sub">Field Operations Interface</div>
+    </div>
+  </div>
+  <div class="driver-info">
+    <div class="driver-selector-wrap">
+      <label>Driver:</label>
+      <select class="driver-select" id="driverSelect" onchange="selectDriver(this.value)">
+        <option value="">— Select Driver —</option>
+      </select>
+    </div>
+    <div id="notifBell" class="notif-bell" onclick="toggleNotifPanel()">
+      🔔
+      <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+    </div>
+    <a href="/" style="color:#6b7280;font-size:12px;text-decoration:none;padding:7px 12px;border:1px solid #2a2d3e;border-radius:7px;transition:border-color .2s;" onmouseover="this.style.borderColor='#3b82d4'" onmouseout="this.style.borderColor='#2a2d3e'">← Admin View</a>
+  </div>
+</header>
+
+<!-- Nav -->
+<nav class="driver-nav">
+  <button class="driver-nav-btn active" onclick="showDriverSection('shipments',this)">📦 My Shipments</button>
+  <button class="driver-nav-btn" onclick="showDriverSection('timeline',this)">🗺 Timeline</button>
+  <button class="driver-nav-btn" onclick="showDriverSection('requests',this)">📋 My Requests</button>
+  <button class="driver-nav-btn" onclick="showDriverSection('submit',this)">➕ Submit Request</button>
+</nav>
+
+<!-- Notification Panel -->
+<div id="notifPanel" class="notif-panel">
+  <div class="notif-panel-header">
+    <span class="notif-panel-title">🔔 Notifications</span>
+    <button class="notif-panel-close" onclick="toggleNotifPanel()">✕</button>
+  </div>
+  <div class="notif-panel-list" id="notifList">
+    <div class="notif-empty">No notifications</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="driver-main">
+
+<!-- SHIPMENTS SECTION -->
+<div id="section-shipments" class="driver-section active">
+  <h2 class="section-title">📦 My Assigned Shipments</h2>
+  <div id="driverShipmentsList">
+    <div class="no-driver-msg">
+      <div class="ndm-icon">🚛</div>
+      <p>Select a driver above to view assigned shipments.</p>
+    </div>
+  </div>
+</div>
+
+<!-- TIMELINE SECTION -->
+<div id="section-timeline" class="driver-section">
+  <h2 class="section-title">🗺 Shipment Timeline</h2>
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+    <select class="driver-select" id="timelineShipmentSelect" style="min-width:220px; flex:1" onchange="loadTimeline(this.value)">
+      <option value="">— Select Shipment —</option>
+    </select>
+    <button class="btn-submit-request" onclick="loadTimeline(document.getElementById('timelineShipmentSelect').value)" style="padding:9px 18px; white-space:nowrap;">↺ Refresh</button>
+  </div>
+  <div id="timelineContent">
+    <div class="no-driver-msg">
+      <div class="ndm-icon">🗺</div>
+      <p>Select a shipment above to view its journey timeline.</p>
+    </div>
+  </div>
+</div>
+
+<!-- MY REQUESTS SECTION -->
+<div id="section-requests" class="driver-section">
+  <h2 class="section-title">📋 My Requests</h2>
+  <div id="myRequestsList">
+    <div class="no-driver-msg">
+      <div class="ndm-icon">📋</div>
+      <p>Select a driver to view submitted requests.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SUBMIT REQUEST SECTION -->
+<div id="section-submit" class="driver-section">
+  <h2 class="section-title">➕ Submit New Request</h2>
+  <div class="request-form" style="max-width:620px">
+    <div class="form-row">
+      <label class="form-label">Driver ID</label>
+      <input type="text" class="form-input" id="reqDriverId" placeholder="Select a driver first" readonly style="opacity:.6; cursor:not-allowed;">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Shipment</label>
+      <select class="form-select" id="reqShipmentId" onchange="onShipmentSelectChange()">
+        <option value="">— Select Shipment —</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Request Type</label>
+      <select class="form-select" id="reqType" onchange="onReqTypeChange()">
+        <option value="Route Change">Route Change</option>
+        <option value="Reroute Request">Reroute Request</option>
+        <option value="Delay Report">Delay Report</option>
+        <option value="Checkpoint Update">Checkpoint Update</option>
+        <option value="Vehicle Issue">Vehicle Issue</option>
+        <option value="Disruption Report">Disruption Report</option>
+        <option value="Delivery Update">Delivery Update</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+
+    <!-- Route Change: show route checkpoint dropdown -->
+    <div class="form-row" id="routeChangeSection" style="display:none;">
+      <label class="form-label">Request Change From Checkpoint</label>
+      <select class="form-select" id="reqRoutePoint">
+        <option value="">— Select checkpoint on your route —</option>
+      </select>
+      <div class="route-points-hint" id="routePointsHint">
+        Select the checkpoint where you need the route change to apply from.
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Current Location</label>
+      <input type="text" class="form-input" id="reqLocation" placeholder="e.g. Nagpur, Maharashtra">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Message / Reason</label>
+      <textarea class="form-textarea" id="reqMessage" placeholder="Describe the situation in detail — be specific about road conditions, location, urgency..."></textarea>
+    </div>
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <button class="btn-submit-request" onclick="submitRequest()" id="submitBtn">✓ Submit Request</button>
+      <span style="font-size:12px; color:#4b5563;">Admin will review and respond via notifications.</span>
+    </div>
+  </div>
+</div>
+
+</div><!-- end driver-main -->
+
+<!-- Success Toast -->
+<div id="successToast" class="success-toast"></div>
+
+<script>
+'use strict';
+const API = 'http://localhost:8080';
+
+let driverState = {
+  selectedDriver: null,
+  shipments: [],
+  requests: [],
+  notifications: [],
+  pollingInterval: null
+};
+
+async function apiGet(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+async function apiPost(path, body) {
+  const r = await fetch(API + path, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// ── Init ───────────────────────────────────────────────────────
+async function init() {
+  try {
+    const drivers = await apiGet('/api/drivers');
+    const sel = document.getElementById('driverSelect');
+    drivers.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.id + ' — ' + d.name + ' (' + d.vehicle_id + ')';
+      sel.appendChild(opt);
+    });
+
+    const saved = localStorage.getItem('selectedDriver');
+    if (saved) {
+      sel.value = saved;
+      selectDriver(saved);
+    }
+  } catch(e) {
+    console.error('Init error:', e);
+  }
+}
+
+async function selectDriver(driverId) {
+  if (!driverId) return;
+  driverState.selectedDriver = driverId;
+  localStorage.setItem('selectedDriver', driverId);
+  document.getElementById('reqDriverId').value = driverId;
+  document.getElementById('reqDriverId').style.opacity = '1';
+
+  await loadDriverData();
+
+  clearInterval(driverState.pollingInterval);
+  driverState.pollingInterval = setInterval(pollUpdates, 5000);
+}
+
+async function loadDriverData() {
+  const did = driverState.selectedDriver;
+  if (!did) return;
+
+  try {
+    const [shipments, notifications] = await Promise.all([
+      apiGet('/api/drivers/' + did + '/shipments'),
+      apiGet('/api/notifications/' + did)
+    ]);
+
+    driverState.shipments = shipments;
+    driverState.notifications = notifications;
+
+    renderShipmentsList();
+    renderNotifications();
+    populateShipmentSelects();
+
+    const allReqs = await apiGet('/api/driver-requests');
+    driverState.requests = allReqs.filter(r => r.driver_id === did);
+    renderMyRequests();
+
+  } catch(e) {
+    console.error('Load driver data error:', e);
+  }
+}
+
+async function pollUpdates() {
+  if (!driverState.selectedDriver) return;
+  try {
+    const did = driverState.selectedDriver;
+    const [notifications, allReqs] = await Promise.all([
+      apiGet('/api/notifications/' + did),
+      apiGet('/api/driver-requests')
+    ]);
+
+    driverState.notifications = notifications;
+    driverState.requests = allReqs.filter(r => r.driver_id === did);
+
+    renderNotifications();
+    renderMyRequests();
+  } catch(e) { /* silent poll failure */ }
+}
+
+// ── Navigation ─────────────────────────────────────────────────
+function showDriverSection(name, btn) {
+  document.querySelectorAll('.driver-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.driver-nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Transport mode helpers ──────────────────────────────────────
+function driverTransportMode(fleetAsset, carrierId) {
+  const fa = (fleetAsset || '').toUpperCase();
+  if (fa.startsWith('V'))  return 'SEA';
+  if (fa.startsWith('CN')) return 'RAIL';
+  const c = (carrierId || '').toUpperCase();
+  if (c === 'C03' || c === 'C09') return 'SEA';
+  if (c === 'C05') return 'RAIL';
+  if (c === 'C04') return 'AIR';
+  return 'ROAD';
+}
+function driverTransportLabel(mode) {
+  return mode === 'SEA'  ? '🚢 Sea'  :
+         mode === 'RAIL' ? '🚂 Rail' :
+         mode === 'AIR'  ? '✈ Air'   : '🚛 Road';
+}
+
+// ── Shipments ──────────────────────────────────────────────────
+function renderShipmentsList() {
+  const ships = driverState.shipments;
+  const container = document.getElementById('driverShipmentsList');
+  if (!ships.length) {
+    container.innerHTML = `<div class="no-driver-msg"><div class="ndm-icon">📦</div><p>No shipments assigned to this driver.</p></div>`;
+    return;
+  }
+  container.innerHTML = ships.map(s => {
+    const mode = driverTransportMode(s.fleet_asset, s.carrier);
+    const modeCls = mode === 'SEA' ? 'tmode-sea' : mode === 'RAIL' ? 'tmode-rail' : mode === 'AIR' ? 'tmode-air' : 'tmode-road';
+    return `
+    <div class="shipment-card" onclick="openShipmentTimeline('${s.id}')">
+      <div class="shipment-card-header">
+        <span class="shipment-card-id">${s.id}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span class="tmode-badge ${modeCls}">${driverTransportLabel(mode)}</span>
+          <span class="req-status-pill rsp-${s.status.toLowerCase()}" style="background:${statusBg(s.status)};color:${statusColor(s.status)}">${s.status}</span>
+        </div>
+      </div>
+      <div class="shipment-card-route">📍 <strong>${s.origin}</strong> <span style="color:#374151;">→</span> <strong>${s.destination}</strong></div>
+      <div class="shipment-card-meta">
+        <span class="shipment-meta-item"><strong>Cargo:</strong> ${s.cargo_type}</span>
+        <span class="shipment-meta-item"><strong>Carrier:</strong> ${s.carrier}</span>
+        <span class="shipment-meta-item"><strong>Vehicle:</strong> ${s.fleet_asset}</span>
+        <span class="shipment-meta-item"><strong>Departure:</strong> ${s.planned_departure}</span>
+        <span class="shipment-meta-item"><strong>ETA:</strong> ${s.current_eta || s.planned_arrival}</span>
+        ${s.expected_delay_hours > 0 ? `<span class="shipment-meta-item" style="color:#f87171;"><strong>Delay:</strong> +${s.expected_delay_hours}h</span>` : ''}
+        ${s.cold_chain ? '<span class="shipment-meta-item" style="color:#22d3ee;">❄ Cold Chain</span>' : ''}
+      </div>
+      <div class="shipment-card-footer">🗺 View timeline →</div>
+    </div>`}).join('');
+}
+
+function statusBg(s){ return s==='ON_TIME'?'#14532d':s==='DISRUPTED'?'#450a0a':s==='DELAYED'?'#451a03':'#1f2937'; }
+function statusColor(s){ return s==='ON_TIME'?'#4ade80':s==='DISRUPTED'?'#f87171':s==='DELAYED'?'#fbbf24':'#9ca3af'; }
+
+function openShipmentTimeline(sid) {
+  document.getElementById('timelineShipmentSelect').value = sid;
+  document.querySelectorAll('.driver-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.driver-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-timeline').classList.add('active');
+  document.querySelectorAll('.driver-nav-btn')[1].classList.add('active');
+  loadTimeline(sid);
+}
+
+// ── Timeline ───────────────────────────────────────────────────
+async function loadTimeline(shipmentId) {
+  if (!shipmentId) return;
+  const container = document.getElementById('timelineContent');
+  container.innerHTML = '<p style="color:#4b5563;font-size:13px;padding:20px 0;">Loading timeline...</p>';
+
+  try {
+    const tl = await apiGet('/api/shipments/' + shipmentId + '/timeline');
+    renderTimeline(tl, container);
+  } catch(e) {
+    container.innerHTML = '<p style="color:#f87171;font-size:13px;">Failed to load timeline. Is the server running?</p>';
+  }
+}
+
+function renderTimeline(tl, container) {
+  const checkpoints = tl.checkpoints || [];
+  const disEvents   = tl.disruption_events || [];
+  const reroutes    = tl.reroutes || [];
+  const loc         = tl.current_location || {};
+
+  // Transport mode
+  const mode     = driverTransportMode('', tl.carrier || '');
+  const modeCls  = mode === 'SEA' ? 'tmode-sea' : mode === 'RAIL' ? 'tmode-rail' : mode === 'AIR' ? 'tmode-air' : 'tmode-road';
+  const modeIcon = mode === 'SEA' ? '🚢' : mode === 'RAIL' ? '🚂' : mode === 'AIR' ? '✈' : '🚛';
+
+  let sortedCPs = checkpoints.slice().sort((a,b) => parseInt(a.sequence)-parseInt(b.sequence));
+  // Synthetic checkpoints for shipments with no data
+  if (sortedCPs.length === 0 && tl.origin && tl.destination) {
+    const st = tl.status || 'ON_TIME';
+    sortedCPs = [
+      { name: tl.origin,       sequence:'1', expected_arrival: tl.planned_departure||'', actual_arrival: tl.planned_departure||'', departure_time: tl.planned_departure||'', status:'COMPLETED' },
+      { name: 'En Route',      sequence:'2', expected_arrival:'', actual_arrival:'', departure_time:'', status: st==='DISRUPTED'?'DISRUPTED':st==='DELAYED'?'CURRENT':'CURRENT' },
+      { name: tl.destination,  sequence:'3', expected_arrival: tl.current_eta||tl.planned_arrival||'', actual_arrival:'', departure_time:'', status:'UPCOMING' }
+    ];
+  }
+
+  let html = `<div class="timeline-outer">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:700;color:#e8eaf0;">${tl.shipment_id || ''}</div>
+      <span class="tmode-badge ${modeCls}">${modeIcon} ${driverTransportLabel(mode)}</span>
+    </div>
+    <div class="tl-summary-grid">
+      <div class="tl-summary-cell"><div class="label">Origin</div><div class="value">${tl.origin||'—'}</div></div>
+      <div class="tl-summary-cell"><div class="label">Destination</div><div class="value">${tl.destination||'—'}</div></div>
+      <div class="tl-summary-cell"><div class="label">Departure</div><div class="value">${tl.planned_departure||'—'}</div></div>
+      <div class="tl-summary-cell"><div class="label">Current ETA</div><div class="value" style="color:${tl.expected_delay_hours>0?'#fbbf24':'#4ade80'}">${tl.current_eta||tl.planned_arrival||'—'}</div></div>
+      <div class="tl-summary-cell"><div class="label">Status</div><div class="value" style="color:${statusColor(tl.status||'')}">${tl.status||'—'}</div></div>
+      ${tl.expected_delay_hours>0?`<div class="tl-summary-cell"><div class="label">Delay</div><div class="value" style="color:#f87171">+${tl.expected_delay_hours}h</div></div>`:''}
+    </div>`;
+
+  // Sea freight notice
+  if (mode === 'SEA') {
+    html += `<div style="background:#0a1f33;border:1px solid #0369a1;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#38bdf8;">
+      🚢 <strong>Sea Freight</strong> — Transported by vessel. Port of loading: <strong>${tl.origin}</strong>. Port of discharge: <strong>${tl.destination}</strong>.
+      ${disEvents.length > 0 ? ' ⚠ Maritime disruption detected on this route.' : ''}
+    </div>`;
+  }
+
+  if (loc.available) {
+    html += `<div class="current-location-card">
+      <div class="current-location-label">📍 CURRENT LOCATION</div>
+      <div class="current-location-name">${loc.location_name||'Unknown'}</div>
+      <div class="current-location-meta">Last update: ${loc.timestamp||'—'} &nbsp;·&nbsp; ${loc.accuracy_status||'—'}</div>
+    </div>`;
+  }
+
+  html += '<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:#374151;text-transform:uppercase;margin-bottom:12px;">Journey Timeline</div>';
+  html += '<div class="timeline-wrap">';
+
+  sortedCPs.forEach((cp, idx) => {
+    const dotClass = cpDotClass(cp.status);
+    const isLast   = idx === sortedCPs.length - 1;
+    const cpHasDis = cp.status === 'DISRUPTED' || cp.status === 'REROUTED';
+    const hasMore  = !isLast || cpHasDis;
+
+    html += timelineItem(dotClass, cpIcon(cp.status), cp.name, `
+      <div class="timeline-times">
+        ${cp.expected_arrival ? `<div class="timeline-time-item"><strong>Expected:</strong> ${cp.expected_arrival}</div>` : ''}
+        ${cp.actual_arrival   ? `<div class="timeline-time-item"><strong>Arrived:</strong> ${cp.actual_arrival}</div>` : ''}
+        ${cp.departure_time   ? `<div class="timeline-time-item"><strong>Departed:</strong> ${cp.departure_time}</div>` : ''}
+      </div>
+      <span class="timeline-status-badge tsb-${cp.status.toLowerCase()}">${cp.status}</span>
+    `, hasMore);
+
+    // Inject disruption + reroute after disrupted checkpoint
+    if (cpHasDis) {
+      disEvents.forEach((de, di) => {
+        const moreAfter = reroutes.length > 0 || !isLast;
+        html += timelineItem('disruption-event', '⚠', `<span style="color:#f87171;font-weight:700;">⚠ DISRUPTION: ${de.location}</span>`, `
+          <div class="timeline-times">
+            <div class="timeline-time-item"><strong>Type:</strong> ${de.type}</div>
+            <div class="timeline-time-item"><strong>Severity:</strong> <span style="color:${de.severity==='HIGH'||de.severity==='CRITICAL'?'#f87171':'#fbbf24'}">${de.severity}</span></div>
+            <div class="timeline-time-item"><strong>Detected:</strong> ${de.detected_at}</div>
+          </div>
+          <div style="font-size:12px;color:#f87171;font-weight:600;margin:4px 0;">📍 Disruption point: ${de.location}</div>
+          <div style="font-size:11px;color:#9ca3af;line-height:1.5;">${de.description}</div>
+        `, moreAfter);
+      });
+      reroutes.forEach((rr, ri) => {
+        html += timelineItem('reroute-event', '↪', `<span style="color:#60a5fa;font-weight:700;">↪ REROUTE FROM ${rr.from_location}</span>`, `
+          <div style="font-size:11px;color:#6b7280;margin-bottom:6px;">Rerouted from disruption point: <strong style="color:#9ca3af">${rr.from_location}</strong></div>
+          <div class="timeline-times">
+            <div class="timeline-time-item"><strong>Disruption:</strong> ${rr.disruption_location}</div>
+            <div class="timeline-time-item"><strong>Applied:</strong> ${rr.created_at}</div>
+          </div>
+          <div style="margin:6px 0 4px;font-size:11px;color:#6b7280;">New route:</div>
+          <div style="font-size:12px;color:#60a5fa;font-weight:600;line-height:1.5;">${rr.alternate_route}</div>
+          ${rr.new_eta ? `<div style="margin-top:6px;font-size:12px;font-weight:700;color:#fbbf24;">🕐 New ETA: ${rr.new_eta}</div>` : ''}
+        `, ri < reroutes.length - 1 || !isLast);
+      });
+    }
+  });
+
+  html += '</div></div>'; // close timeline-wrap + timeline-outer
+
+  // Driver requests for this shipment
+  if (tl.driver_requests && tl.driver_requests.length) {
+    html += '<div style="margin-top:16px;"><div style="font-size:10px;font-weight:700;letter-spacing:1px;color:#374151;text-transform:uppercase;margin-bottom:10px;">DRIVER REQUESTS FOR THIS SHIPMENT</div>';
+    tl.driver_requests.forEach(r => {
+      html += renderRequestCardHtml(r);
+    });
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function timelineItem(dotClass, icon, name, bodyHtml, hasLine) {
+  return `<div class="timeline-item">
+    <div class="timeline-spine">
+      <div class="timeline-dot ${dotClass}">${icon}</div>
+      ${hasLine ? '<div class="timeline-line"></div>' : ''}
+    </div>
+    <div class="timeline-content">
+      <div class="timeline-name">${name}</div>
+      ${bodyHtml}
+    </div>
+  </div>`;
+}
+
+function cpDotClass(st) {
+  const m = {COMPLETED:'completed',CURRENT:'current',UPCOMING:'upcoming',DISRUPTED:'disrupted',REROUTED:'rerouted',SKIPPED:'upcoming'};
+  return m[st] || 'upcoming';
+}
+function cpIcon(st) {
+  const m = {COMPLETED:'✓',CURRENT:'📍',UPCOMING:'○',DISRUPTED:'⚠',REROUTED:'↪',SKIPPED:'—'};
+  return m[st] || '○';
+}
+
+// ── Requests ───────────────────────────────────────────────────
+function renderMyRequests() {
+  const reqs = driverState.requests;
+  const container = document.getElementById('myRequestsList');
+  if (!driverState.selectedDriver) {
+    container.innerHTML = `<div class="no-driver-msg"><div class="ndm-icon">📋</div><p>Select a driver to view requests.</p></div>`;
+    return;
+  }
+  if (!reqs.length) {
+    container.innerHTML = `<div class="no-driver-msg"><div class="ndm-icon">✓</div><p>No requests submitted yet.</p></div>`;
+    return;
+  }
+  container.innerHTML = reqs.map(renderRequestCardHtml).join('');
+}
+
+function renderRequestCardHtml(r) {
+  const statusClass = r.status === 'APPROVED' ? 'rsp-approved' : r.status === 'REJECTED' ? 'rsp-rejected' : 'rsp-pending';
+  const statusLabel = r.status === 'PENDING' ? '⏳ Pending admin approval' : r.status === 'APPROVED' ? '✓ APPROVED' : '✕ REJECTED';
+  return `<div class="req-card">
+    <div class="req-card-header">
+      <span class="req-card-id">${r.id}</span>
+      <span class="req-card-type">${r.request_type}</span>
+    </div>
+    <div class="req-card-meta" style="margin-bottom:8px;">
+      <span><strong>Shipment:</strong> ${r.shipment_id}</span>
+      <span><strong>Location:</strong> ${r.location||'—'}</span>
+      <span><strong>Submitted:</strong> ${r.created_at}</span>
+    </div>
+    <div class="req-card-body">${r.message}</div>
+    <div><span class="req-status-pill ${statusClass}">${statusLabel}</span></div>
+    ${r.admin_response ? `<div class="req-response ${r.status==='APPROVED'?'approved-resp':'rejected-resp'}">
+      <strong>Admin response:</strong> ${r.admin_response}
+    </div>` : ''}
+  </div>`;
+}
+
+// ── Submit Request ─────────────────────────────────────────────
+function onReqTypeChange() {
+  const type = document.getElementById('reqType').value;
+  const section = document.getElementById('routeChangeSection');
+  const hint = document.getElementById('routePointsHint');
+  if (type === 'Route Change' || type === 'Reroute Request') {
+    section.style.display = 'block';
+    hint.classList.add('visible');
+    // Populate checkpoints for the selected shipment
+    loadCheckpointsForShipment(document.getElementById('reqShipmentId').value);
+  } else {
+    section.style.display = 'none';
+  }
+}
+
+function onShipmentSelectChange() {
+  const type = document.getElementById('reqType').value;
+  if (type === 'Route Change' || type === 'Reroute Request') {
+    loadCheckpointsForShipment(document.getElementById('reqShipmentId').value);
+  }
+}
+
+async function loadCheckpointsForShipment(shipmentId) {
+  const sel = document.getElementById('reqRoutePoint');
+  sel.innerHTML = '<option value="">Loading route points...</option>';
+  if (!shipmentId) {
+    sel.innerHTML = '<option value="">— Select a shipment first —</option>';
+    return;
+  }
+  try {
+    const tl = await apiGet('/api/shipments/' + shipmentId + '/timeline');
+    const cps = (tl.checkpoints || []).sort((a,b) => parseInt(a.sequence)-parseInt(b.sequence));
+    if (!cps.length) {
+      sel.innerHTML = `<option value="${tl.origin||'Origin'}">${tl.origin||'Origin'} (Start)</option>
+                       <option value="${tl.destination||'Destination'}">${tl.destination||'Destination'} (End)</option>`;
+    } else {
+      sel.innerHTML = '<option value="">— Select checkpoint —</option>' +
+        cps.map(cp => `<option value="${cp.name}" ${cp.status==='DISRUPTED'||cp.status==='CURRENT'?'style="color:#fbbf24"':''}>${cp.name} [${cp.status}]</option>`).join('');
+    }
+  } catch(e) {
+    sel.innerHTML = '<option value="">— Could not load route points —</option>';
+  }
+}
+
+async function submitRequest() {
+  const driverId = driverState.selectedDriver;
+  if (!driverId) { alert('Please select a driver first.'); return; }
+
+  const shipmentId = document.getElementById('reqShipmentId').value;
+  const reqType    = document.getElementById('reqType').value;
+  const location   = document.getElementById('reqLocation').value.trim();
+  let message      = document.getElementById('reqMessage').value.trim();
+
+  if (!shipmentId) { alert('Please select a shipment.'); return; }
+  if (!message)    { alert('Please enter a message/reason.'); return; }
+
+  // Append route point if route change
+  const routePoint = document.getElementById('reqRoutePoint').value;
+  if ((reqType === 'Route Change' || reqType === 'Reroute Request') && routePoint) {
+    message = `[Requesting route change from: ${routePoint}] ${message}`;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  try {
+    const result = await apiPost('/api/driver-requests', {
+      driver_id: driverId,
+      shipment_id: shipmentId,
+      request_type: reqType,
+      location: location,
+      message: message
+    });
+
+    if (result.status === 'ok') {
+      showToast('✓ Request ' + result.request_id + ' submitted. Awaiting admin approval.');
+      document.getElementById('reqMessage').value = '';
+      document.getElementById('reqLocation').value = '';
+      document.getElementById('reqRoutePoint').innerHTML = '<option value="">— Select checkpoint —</option>';
+      document.getElementById('routeChangeSection').style.display = 'none';
+      await loadDriverData();
+    } else {
+      alert('Error: ' + (result.error || 'Unknown error'));
+    }
+  } catch(e) {
+    alert('Failed to submit request: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✓ Submit Request';
+}
+
+// ── Notifications ──────────────────────────────────────────────
+function renderNotifications() {
+  const notifs = driverState.notifications;
+  const unread = notifs.filter(n => !n.read_status).length;
+  const badge = document.getElementById('notifBadge');
+  if (unread > 0) {
+    badge.textContent = unread;
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  const list = document.getElementById('notifList');
+  if (!notifs.length) {
+    list.innerHTML = '<div class="notif-empty">No notifications</div>';
+    return;
+  }
+  list.innerHTML = notifs.map(n => `
+    <div class="notif-item ${n.read_status ? '' : 'unread'} notif-type-${n.type.toLowerCase().replace(/_/g,'-')}"
+         onclick="markNotifRead('${n.id}')">
+      <div class="notif-item-title">${n.title}</div>
+      <div class="notif-item-msg">${n.message}</div>
+      <div class="notif-item-time">${n.created_at}${n.related_shipment_id ? ' · ' + n.related_shipment_id : ''}</div>
+    </div>`).join('');
+}
+
+async function markNotifRead(notifId) {
+  try {
+    await apiPost('/api/notifications/' + notifId + '/read', {});
+    const notif = driverState.notifications.find(n => n.id === notifId);
+    if (notif) notif.read_status = true;
+    renderNotifications();
+  } catch(e) {}
+}
+
+function toggleNotifPanel() {
+  document.getElementById('notifPanel').classList.toggle('open');
+}
+
+document.addEventListener('click', e => {
+  const panel = document.getElementById('notifPanel');
+  const bell  = document.getElementById('notifBell');
+  if (!panel.contains(e.target) && !bell.contains(e.target)) {
+    panel.classList.remove('open');
+  }
+});
+
+// ── Helpers ───────────────────────────────────────────────────
+function populateShipmentSelects() {
+  const ships = driverState.shipments;
+  ['reqShipmentId','timelineShipmentSelect'].forEach(id => {
+    const sel = document.getElementById(id);
+    const currentVal = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    ships.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.id + ' — ' + s.origin + ' → ' + s.destination;
+      sel.appendChild(opt);
+    });
+    if (currentVal) sel.value = currentVal;
+  });
+  // Fallback demo shipments for timeline if no driver assigned
+  if (!ships.length) {
+    ['SH1042','SH1001','SH1016','SH1003'].forEach(sid => {
+      const opt = document.createElement('option');
+      opt.value = sid;
+      opt.textContent = sid;
+      document.getElementById('timelineShipmentSelect').appendChild(opt);
+    });
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('successToast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 4000);
+}
+
+// Start
+init();
+</script>
+</body>
+</html>

@@ -167,6 +167,101 @@ void Database::createSchema() {
             allowed_excursion_minutes INTEGER NOT NULL DEFAULT 30
         );
     )");
+
+    // ── New tables for driver/request/timeline features ───────────────────────
+    exec(R"(
+        CREATE TABLE IF NOT EXISTS drivers (
+            id          TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            contact     TEXT NOT NULL DEFAULT '',
+            vehicle_id  TEXT NOT NULL DEFAULT '',
+            status      TEXT NOT NULL DEFAULT 'ACTIVE'
+        );
+
+        CREATE TABLE IF NOT EXISTS driver_requests (
+            id              TEXT PRIMARY KEY,
+            driver_id       TEXT NOT NULL,
+            shipment_id     TEXT NOT NULL,
+            request_type    TEXT NOT NULL,
+            message         TEXT NOT NULL DEFAULT '',
+            location        TEXT NOT NULL DEFAULT '',
+            created_at      TEXT NOT NULL,
+            status          TEXT NOT NULL DEFAULT 'PENDING',
+            admin_response  TEXT NOT NULL DEFAULT '',
+            updated_at      TEXT NOT NULL DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id                  TEXT PRIMARY KEY,
+            driver_id           TEXT NOT NULL,
+            title               TEXT NOT NULL,
+            message             TEXT NOT NULL,
+            type                TEXT NOT NULL DEFAULT 'INFO',
+            related_request_id  TEXT NOT NULL DEFAULT '',
+            related_shipment_id TEXT NOT NULL DEFAULT '',
+            created_at          TEXT NOT NULL,
+            read_status         INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS shipment_checkpoints (
+            id              TEXT PRIMARY KEY,
+            shipment_id     TEXT NOT NULL,
+            name            TEXT NOT NULL,
+            latitude        REAL NOT NULL DEFAULT 0.0,
+            longitude       REAL NOT NULL DEFAULT 0.0,
+            sequence        INTEGER NOT NULL DEFAULT 0,
+            expected_arrival TEXT NOT NULL DEFAULT '',
+            actual_arrival  TEXT NOT NULL DEFAULT '',
+            departure_time  TEXT NOT NULL DEFAULT '',
+            status          TEXT NOT NULL DEFAULT 'UPCOMING'
+        );
+
+        CREATE TABLE IF NOT EXISTS shipment_locations (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            shipment_id     TEXT NOT NULL,
+            latitude        REAL NOT NULL DEFAULT 0.0,
+            longitude       REAL NOT NULL DEFAULT 0.0,
+            location_name   TEXT NOT NULL DEFAULT '',
+            timestamp       TEXT NOT NULL,
+            source          TEXT NOT NULL DEFAULT 'DRIVER_UPDATE',
+            accuracy_status TEXT NOT NULL DEFAULT 'LAST_REPORTED'
+        );
+
+        CREATE TABLE IF NOT EXISTS disruption_events (
+            id              TEXT PRIMARY KEY,
+            shipment_id     TEXT NOT NULL,
+            location        TEXT NOT NULL,
+            latitude        REAL NOT NULL DEFAULT 0.0,
+            longitude       REAL NOT NULL DEFAULT 0.0,
+            detected_at     TEXT NOT NULL,
+            type            TEXT NOT NULL DEFAULT 'Road Closure',
+            severity        TEXT NOT NULL DEFAULT 'HIGH',
+            description     TEXT NOT NULL DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS reroutes (
+            id              TEXT PRIMARY KEY,
+            shipment_id     TEXT NOT NULL,
+            from_location   TEXT NOT NULL,
+            disruption_location TEXT NOT NULL DEFAULT '',
+            original_route  TEXT NOT NULL DEFAULT '',
+            alternate_route TEXT NOT NULL DEFAULT '',
+            created_at      TEXT NOT NULL,
+            new_eta         TEXT NOT NULL DEFAULT '',
+            status          TEXT NOT NULL DEFAULT 'ACTIVE'
+        );
+
+        CREATE TABLE IF NOT EXISTS verification_sources (
+            id              TEXT PRIMARY KEY,
+            disruption_event_id TEXT NOT NULL,
+            source_name     TEXT NOT NULL,
+            source_type     TEXT NOT NULL DEFAULT 'WEATHER',
+            source_url      TEXT NOT NULL DEFAULT '',
+            published_at    TEXT NOT NULL DEFAULT '',
+            summary         TEXT NOT NULL DEFAULT '',
+            status          TEXT NOT NULL DEFAULT 'SUPPORTED'
+        );
+    )");
 }
 
 // ── Seed Data ─────────────────────────────────────────────────────────────────
@@ -178,6 +273,15 @@ void Database::seedData() {
     seedFleetAssets();
     seedColdChainConfig();
     seedSensorReadings();
+    // New seed methods
+    seedDrivers();
+    seedDriverRequests();
+    seedNotifications();
+    seedShipmentCheckpoints();
+    seedShipmentLocations();
+    seedDisruptionEvents();
+    seedReroutes();
+    seedVerificationSources();
 }
 
 void Database::seedDisruptions() {
@@ -488,6 +592,229 @@ void Database::seedSensorReadings() {
     )");
 }
 
+// ── New seed implementations ──────────────────────────────────────────────────
+
+void Database::seedDrivers() {
+    exec("DELETE FROM drivers");
+    exec(R"(
+        INSERT INTO drivers VALUES
+        ('DRV01','Rajesh Kumar','+91-9800001001','T201','ACTIVE'),
+        ('DRV02','Suresh Patel','+91-9800001002','T202','ACTIVE'),
+        ('DRV03','Anil Singh','+91-9800001003','T203','ACTIVE'),
+        ('DRV04','Priya Sharma','+91-9800001004','T205','ACTIVE'),
+        ('DRV05','Ramesh Nair','+91-9800001005','T206','ACTIVE'),
+        ('DRV06','Deepak Verma','+91-9800001006','T207','ACTIVE'),
+        ('DRV07','Arjun Mehta','+91-9800001007','T229','ACTIVE'),
+        ('DRV08','Vikram Rao','+91-9800001008','T210','ACTIVE'),
+        ('DRV09','Sanjay Gupta','+91-9800001009','T212','ACTIVE'),
+        ('DRV10','Mohan Das','+91-9800001010','T213','ACTIVE')
+    )");
+}
+
+void Database::seedDriverRequests() {
+    exec("DELETE FROM driver_requests");
+    exec(R"(
+        INSERT INTO driver_requests VALUES
+        ('REQ001','DRV07','SH1042','Reroute Request',
+         'Road ahead is blocked due to heavy flooding on NH-44 near Nagpur. Water level on road approx 2 feet. Requesting alternate route via NH-53.',
+         'Nagpur, Maharashtra',
+         '2024-06-10 18:05','APPROVED',
+         'Alternate route via NH-53 approved. Proceed via Wardha–Yavatmal–Nanded highway. New ETA updated.',
+         '2024-06-10 18:25'),
+        ('REQ002','DRV01','SH1001','Delay Report',
+         'Heavy traffic near Surat due to local festival procession. Estimated 2 hour delay.',
+         'Surat, Gujarat',
+         '2024-06-10 09:30','APPROVED',
+         'Acknowledged. ETA updated accordingly.',
+         '2024-06-10 09:55'),
+        ('REQ003','DRV03','SH1003','Vehicle Issue',
+         'Left rear tyre pressure low. Pulling over for inspection at Belgaum.',
+         'Belgaum, Karnataka',
+         '2024-06-10 14:10','APPROVED',
+         'Tyre change authorized. Roadside assistance dispatched. Resume when safe.',
+         '2024-06-10 14:30'),
+        ('REQ004','DRV08','SH1016','Disruption Report',
+         'Police checkpost near Vadodara causing 3 hour delays. Multiple vehicles queued.',
+         'Vadodara, Gujarat',
+         '2024-06-10 07:45','REJECTED',
+         'Alternate route via SH-64 is currently under repair. Continue on current route and monitor.',
+         '2024-06-10 08:10'),
+        ('REQ005','DRV06','SH1012','Checkpoint Update',
+         'Reached Nashik checkpoint. Cargo secure and temperature normal. Proceeding towards Delhi.',
+         'Nashik, Maharashtra',
+         '2024-06-10 15:30','APPROVED',
+         'Checkpoint confirmed. Continue on schedule.',
+         '2024-06-10 15:45'),
+        ('REQ006','DRV09','SH1019','Delivery Update',
+         'Delivery attempted at Mumbai warehouse but facility closed. Consignee not available.',
+         'Mumbai, Maharashtra',
+         '2024-06-10 22:00','PENDING',
+         '',
+         ''),
+        ('REQ007','DRV02','SH1004','Route Change',
+         'Traffic congestion on Mumbai Expressway. Requesting Mumbai Bypass route.',
+         'Khopoli, Maharashtra',
+         '2024-06-10 08:45','PENDING',
+         '',
+         ''),
+        ('REQ008','DRV05','SH1010','Other',
+         'Driver rest break required per regulations. Stopping at Kanpur for 4 hours.',
+         'Kanpur, Uttar Pradesh',
+         '2024-06-10 12:00','APPROVED',
+         'Rest break approved. Ensure cargo is secure.',
+         '2024-06-10 12:20')
+    )");
+}
+
+void Database::seedNotifications() {
+    exec("DELETE FROM notifications");
+    exec(R"(
+        INSERT INTO notifications VALUES
+        ('NOTIF001','DRV07','Request Approved',
+         'Your Reroute Request REQ001 has been approved by the operations team. Proceed via NH-53 through Wardha–Yavatmal–Nanded. New ETA has been updated.',
+         'REQUEST_APPROVED','REQ001','SH1042',
+         '2024-06-10 18:25',0),
+        ('NOTIF002','DRV07','Disruption Detected Ahead',
+         'A road disruption has been detected on your route near Nagpur. A reroute is being assessed.',
+         'DISRUPTION','','SH1042',
+         '2024-06-10 18:05',1),
+        ('NOTIF003','DRV07','New ETA Updated',
+         'The ETA for shipment SH1042 has been updated to 2024-06-11 22:00 due to rerouting.',
+         'ETA_UPDATE','','SH1042',
+         '2024-06-10 18:30',1),
+        ('NOTIF004','DRV01','Request Approved',
+         'Your Delay Report REQ002 has been acknowledged. ETA updated.',
+         'REQUEST_APPROVED','REQ002','SH1001',
+         '2024-06-10 09:55',1),
+        ('NOTIF005','DRV08','Request Rejected',
+         'Your Disruption Report REQ004 was rejected. Reason: Alternate route via SH-64 is currently under repair. Continue on current route.',
+         'REQUEST_REJECTED','REQ004','SH1016',
+         '2024-06-10 08:10',0),
+        ('NOTIF006','DRV09','Pending Approval',
+         'Your Delivery Update REQ006 is awaiting admin review.',
+         'REQUEST_PENDING','REQ006','SH1019',
+         '2024-06-10 22:01',0),
+        ('NOTIF007','DRV02','Pending Approval',
+         'Your Route Change request REQ007 is awaiting admin review.',
+         'REQUEST_PENDING','REQ007','SH1004',
+         '2024-06-10 08:46',0)
+    )");
+}
+
+void Database::seedShipmentCheckpoints() {
+    exec("DELETE FROM shipment_checkpoints");
+    // Demo shipment SH1042: Chennai → Bengaluru → Nagpur → Pune → Delhi
+    exec(R"(
+        INSERT INTO shipment_checkpoints VALUES
+        ('CP_SH1042_1','SH1042','Chennai',13.0827,80.2707,1,
+         '2024-06-10 05:00','2024-06-10 05:00','2024-06-10 05:15','COMPLETED'),
+        ('CP_SH1042_2','SH1042','Bengaluru',12.9716,77.5946,2,
+         '2024-06-10 11:30','2024-06-10 11:42','2024-06-10 12:00','COMPLETED'),
+        ('CP_SH1042_3','SH1042','Nagpur',21.1458,79.0882,3,
+         '2024-06-10 17:00','2024-06-10 17:25','','DISRUPTED'),
+        ('CP_SH1042_4','SH1042','Wardha (Alt)',20.7453,78.6022,4,
+         '2024-06-10 19:00','','','REROUTED'),
+        ('CP_SH1042_5','SH1042','Pune',18.5204,73.8567,5,
+         '2024-06-11 01:30','','','UPCOMING'),
+        ('CP_SH1042_6','SH1042','Delhi',28.7041,77.1025,6,
+         '2024-06-11 22:00','','','UPCOMING')
+    )");
+
+    // SH1001: Mumbai → Surat → Baroda → Surat → Delhi
+    exec(R"(
+        INSERT INTO shipment_checkpoints VALUES
+        ('CP_SH1001_1','SH1001','Mumbai',19.0760,72.8777,1,
+         '2024-06-10 06:00','2024-06-10 06:00','2024-06-10 06:20','COMPLETED'),
+        ('CP_SH1001_2','SH1001','Surat',21.1702,72.8311,2,
+         '2024-06-10 10:00','2024-06-10 10:30','2024-06-10 10:50','COMPLETED'),
+        ('CP_SH1001_3','SH1001','Vadodara',22.3072,73.1812,3,
+         '2024-06-10 12:00','','','UPCOMING'),
+        ('CP_SH1001_4','SH1001','Ahmedabad',23.0225,72.5714,4,
+         '2024-06-10 14:00','','','UPCOMING'),
+        ('CP_SH1001_5','SH1001','Delhi',28.7041,77.1025,5,
+         '2024-06-12 06:00','','','UPCOMING')
+    )");
+
+    // SH1016: Mumbai → Vadodara → Ratlam → Bhopal → Agra → Delhi
+    exec(R"(
+        INSERT INTO shipment_checkpoints VALUES
+        ('CP_SH1016_1','SH1016','Mumbai',19.0760,72.8777,1,
+         '2024-06-10 05:00','2024-06-10 05:00','2024-06-10 05:15','COMPLETED'),
+        ('CP_SH1016_2','SH1016','Vadodara',22.3072,73.1812,2,
+         '2024-06-10 09:00','2024-06-10 09:20','','CURRENT'),
+        ('CP_SH1016_3','SH1016','Bhopal',23.2599,77.4126,3,
+         '2024-06-10 16:00','','','UPCOMING'),
+        ('CP_SH1016_4','SH1016','Agra',27.1767,78.0081,4,
+         '2024-06-11 22:00','','','UPCOMING'),
+        ('CP_SH1016_5','SH1016','Delhi',28.7041,77.1025,5,
+         '2024-06-12 14:00','','','UPCOMING')
+    )");
+}
+
+void Database::seedShipmentLocations() {
+    exec("DELETE FROM shipment_locations");
+    exec(R"(
+        INSERT INTO shipment_locations (shipment_id,latitude,longitude,location_name,timestamp,source,accuracy_status)
+        VALUES
+        ('SH1042',21.1458,79.0882,'Nagpur, Maharashtra','2024-06-10 17:25','DRIVER_UPDATE','LAST_REPORTED'),
+        ('SH1001',21.1702,72.8311,'Surat, Gujarat','2024-06-10 10:30','DRIVER_UPDATE','LAST_REPORTED'),
+        ('SH1016',22.3072,73.1812,'Vadodara, Gujarat','2024-06-10 09:20','DRIVER_UPDATE','LAST_REPORTED'),
+        ('SH1003',12.9716,77.5946,'Bengaluru, Karnataka','2024-06-10 14:10','DRIVER_UPDATE','LAST_REPORTED'),
+        ('SH1009',13.0827,80.2707,'Chennai, Tamil Nadu','2024-06-10 06:00','DRIVER_UPDATE','LAST_REPORTED'),
+        ('SH1024',19.0760,72.8777,'Mumbai, Maharashtra','2024-06-10 07:00','DRIVER_UPDATE','LAST_REPORTED')
+    )");
+}
+
+void Database::seedDisruptionEvents() {
+    exec("DELETE FROM disruption_events");
+    exec(R"(
+        INSERT INTO disruption_events VALUES
+        ('DE001','SH1042','Nagpur, Maharashtra — NH-44',21.1458,79.0882,
+         '2024-06-10 18:05','Road Closure','HIGH',
+         'NH-44 flooded due to heavy rainfall. Water level approximately 2 feet on road surface. Multiple vehicles stranded. Local authorities have closed the stretch from Nagpur to Wardha on NH-44.'),
+        ('DE002','SH1001','Vadodara, Gujarat',22.3072,73.1812,
+         '2024-06-10 07:45','Traffic Obstruction','MEDIUM',
+         'Police checkpost causing delays near Vadodara. Multiple vehicles queued on NH-48.'),
+        ('DE003','SH1016','Mumbai–Delhi Highway NH-48',21.5222,72.9298,
+         '2024-06-10 08:00','Weather Event','HIGH',
+         'Cyclone Biparjoy aftermath causing road closures on coastal stretch. NH-48 partially closed.')
+    )");
+}
+
+void Database::seedReroutes() {
+    exec("DELETE FROM reroutes");
+    exec(R"(
+        INSERT INTO reroutes VALUES
+        ('RR001','SH1042','Nagpur, Maharashtra','Nagpur–Wardha (NH-44 flooded)',
+         'Chennai → Bengaluru → Nagpur → Pune → Delhi (via NH-44)',
+         'Chennai → Bengaluru → Nagpur → Wardha → Yavatmal → Nanded → Pune → Delhi (via NH-53)',
+         '2024-06-10 18:25','2024-06-11 22:00','ACTIVE')
+    )");
+}
+
+void Database::seedVerificationSources() {
+    exec("DELETE FROM verification_sources");
+    exec(R"(
+        INSERT INTO verification_sources VALUES
+        ('VS001','DE001','Maharashtra State Weather Department','WEATHER','',
+         '2024-06-10 17:50',
+         'Heavy to very heavy rainfall recorded in Vidarbha region. Nagpur received 45mm rainfall in last 6 hours. Orange alert issued for Nagpur and Wardha districts.',
+         'SUPPORTED'),
+        ('VS002','DE001','Times of India — Nagpur Edition','NEWS','',
+         '2024-06-10 18:15',
+         'NH-44 flooded near Nagpur–Wardha stretch. Traffic diverted. Local administration requests motorists avoid the route.',
+         'SUPPORTED'),
+        ('VS003','DE002','Gujarat Traffic Police','OFFICIAL','',
+         '2024-06-10 07:30',
+         'Traffic advisory issued for NH-48 near Vadodara. Police checkpost operational due to VIP movement.',
+         'SUPPORTED'),
+        ('VS004','DE003','India Meteorological Department','WEATHER','',
+         '2024-06-10 06:00',
+         'Cyclone Biparjoy: Very Severe Cyclonic Storm. Landfall near Jakhau Port, Gujarat. Coastal areas and NH-48 affected. Red alert for Gujarat.',
+         'SUPPORTED')
+    )");
+}
+
 // ── Reset ─────────────────────────────────────────────────────────────────────
 void Database::resetToSeedState() {
     exec("DELETE FROM disruptions");
@@ -497,6 +824,14 @@ void Database::resetToSeedState() {
     exec("DELETE FROM fleet_assets");
     exec("DELETE FROM sensor_readings");
     exec("DELETE FROM cold_chain_config");
+    exec("DELETE FROM drivers");
+    exec("DELETE FROM driver_requests");
+    exec("DELETE FROM notifications");
+    exec("DELETE FROM shipment_checkpoints");
+    exec("DELETE FROM shipment_locations");
+    exec("DELETE FROM disruption_events");
+    exec("DELETE FROM reroutes");
+    exec("DELETE FROM verification_sources");
     seedData();
 }
 
